@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мониторинг датчиков</title>
+    <link rel="stylesheet" href="style.css?hash=__STYLE_HASH__">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Система мониторинга</h1>
+            <div class="status" id="status">Подключение...</div>
+        </header>
+
+        <div class="sensors-grid">
+            <div class="sensor-card">
+                <h3>CO₂</h3>
+                <div class="value" id="co2">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>CO</h3>
+                <div class="value" id="co">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>LPG</h3>
+                <div class="value" id="lpg">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>NH₃</h3>
+                <div class="value" id="nh3">--</div>
+                <div class="unit">ppm</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>История показаний</h3>
+            <canvas id="sensorChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="info">
+            <div>Последнее обновление: <span id="lastUpdate">--</span></div>
+            <div>Напряжение: <span id="voltage">--</span> V</div>
+            <div>Rs/Ro: <span id="rsro">--</span></div>
+        </div>
+    </div>
+
+    <script src="script.js?hash=__SCRIPT_HASH__"></script>
+</body>
+</html>
