@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мониторинг датчиков</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Система мониторинга</h1>
+            <div class="status" id="status">Подключение...</div>
+        </header>
+
+        <div class="sensors-grid">
+            <div class="sensor-card">
+                <h3>Температура</h3>
+                <div class="value" id="temperature">--</div>
+                <div class="unit">°C</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>Влажность</h3>
+                <div class="value" id="humidity">--</div>
+                <div class="unit">%</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>CO₂</h3>
+                <div class="value" id="co2">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>CO</h3>
+                <div class="value" id="co">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>LPG</h3>
+                <div class="value" id="lpg">--</div>
+                <div class="unit">ppm</div>
+            </div>
+            
+            <div class="sensor-card">
+                <h3>NH₃</h3>
+                <div class="value" id="nh3">--</div>
+                <div class="unit">ppm</div>
+            </div>
+        </div>
+
+        <div class="info">
+            <div>Последнее обновление: <span id="lastUpdate">--</span></div>
+            <div id="updateTimer">Следующее обновление через: 5 сек</div>
+        </div>
+        
+        <button id="refreshBtn" class="refresh-btn">Обновить сейчас</button>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>

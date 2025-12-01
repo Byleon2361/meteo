@@ -3,11 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "color_storage.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
-#include "rgb_led.h"
+#include "sensor_data.h"
 
 static const char* TAG = "WEB";
 
@@ -53,42 +52,55 @@ static esp_err_t js_handler(httpd_req_t* req) {
 }
 
 static esp_err_t get_handler(httpd_req_t* req) {
-  uint8_t r = 0, g = 0, b = 0;
-  esp_err_t err = color_storage_load(&r, &g, &b);
-  if (err != ESP_OK) {
-    r = g = b = 0;
-  }
-  char buf[64];
-  int len = snprintf(buf, sizeof(buf), "{\"r\":%u,\"g\":%u,\"b\":%u}", r, g, b);
+  float temperature, humidity;
+  bool dht_valid;
+  sensor_data_get_dht(&temperature, &humidity, &dht_valid);
+  
+  float co2_ppm, lpg_ppm, co_ppm, nh3_ppm;
+  bool mq_valid;
+  sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm, &mq_valid);
+
+  // ИСПРАВЛЕНО: правильные имена полей и добавлены пропущенные данные
+  char buf[256];  // Увеличил буфер
+  int len = snprintf(buf, sizeof(buf), 
+      "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f}",
+      dht_valid ? temperature : 0.0f,
+      dht_valid ? humidity : 0.0f,
+      mq_valid ? co2_ppm : 0.0f,
+      mq_valid ? co_ppm : 0.0f,
+      mq_valid ? nh3_ppm : 0.0f,
+      mq_valid ? lpg_ppm : 0.0f
+  );
+  
   httpd_resp_set_type(req, "application/json; charset=utf-8");
   httpd_resp_send(req, buf, len);
   return ESP_OK;
 }
 
 static esp_err_t set_handler(httpd_req_t* req) {
-  char query[64];
-  char param[8];
-  int r = 0, g = 0, b = 0;
-  if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
-    if (httpd_query_key_value(query, "r", param, sizeof(param)) == ESP_OK)
-      r = atoi(param);
-    if (httpd_query_key_value(query, "g", param, sizeof(param)) == ESP_OK)
-      g = atoi(param);
-    if (httpd_query_key_value(query, "b", param, sizeof(param)) == ESP_OK)
-      b = atoi(param);
-  }
-  if (r < 0) r = 0;
-  if (r > 255) r = 255;
-  if (g < 0) g = 0;
-  if (g > 255) g = 255;
-  if (b < 0) b = 0;
-  if (b > 255) b = 255;
-  rgb_led_set((uint8_t)r, (uint8_t)g, (uint8_t)b);
-  color_storage_save((uint8_t)r, (uint8_t)g, (uint8_t)b);
-  char resp[64];
-  snprintf(resp, sizeof(resp), "OK R=%d G=%d B=%d", r, g, b);
-  httpd_resp_set_type(req, "text/plain; charset=utf-8");
-  httpd_resp_send(req, resp, strlen(resp));
+  // char query[64];
+  // char param[8];
+  // int r = 0, g = 0, b = 0;
+  // if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+  //   if (httpd_query_key_value(query, "r", param, sizeof(param)) == ESP_OK)
+  //     r = atoi(param);
+  //   if (httpd_query_key_value(query, "g", param, sizeof(param)) == ESP_OK)
+  //     g = atoi(param);
+  //   if (httpd_query_key_value(query, "b", param, sizeof(param)) == ESP_OK)
+  //     b = atoi(param);
+  // }
+  // if (r < 0) r = 0;
+  // if (r > 255) r = 255;
+  // if (g < 0) g = 0;
+  // if (g > 255) g = 255;
+  // if (b < 0) b = 0;
+  // if (b > 255) b = 255;
+  // rgb_led_set((uint8_t)r, (uint8_t)g, (uint8_t)b);
+  // color_storage_save((uint8_t)r, (uint8_t)g, (uint8_t)b);
+  // char resp[64];
+  // snprintf(resp, sizeof(resp), "OK R=%d G=%d B=%d", r, g, b);
+  // httpd_resp_set_type(req, "text/plain; charset=utf-8");
+  // httpd_resp_send(req, resp, strlen(resp));
   return ESP_OK;
 }
 void start_webserver(void) {

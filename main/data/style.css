@@ -159,3 +159,35 @@ header h1 {
 .level-moderate { color: #f39c12; }
 .level-bad { color: #e74c3c; }
 .level-danger { color: #c0392b; }
+/* Обновите стиль кнопки */
+.refresh-btn {
+    display: block;
+    width: 200px;
+    margin: 20px auto;
+    padding: 12px 24px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+.refresh-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.refresh-btn:active {
+    transform: translateY(0);
+}
+
+/* Стиль для таймера */
+#updateTimer {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    font-style: italic;
+}
