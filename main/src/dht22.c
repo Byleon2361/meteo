@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdio.h>
 
 #include "driver/gpio.h"
@@ -14,22 +13,25 @@ static const char* TAG = "DHT22";
 static uint8_t dht22_read(dht22_t* dht) {
   uint64_t start_time = esp_timer_get_time();
 
+  // Защита от слишком частых запросов (мин. 2 секунды)
   if (start_time - dht->last_read_time < 2000000) {
     return DHT_TIMEOUT;
   }
 
   memset(dht->data, 0, 5);
 
+  // === Старт-сигнал ===
   gpio_set_direction(dht->gpio, GPIO_MODE_OUTPUT);
   gpio_set_level(dht->gpio, 0);
-  vTaskDelay(pdMS_TO_TICKS(20));
+  vTaskDelay(pdMS_TO_TICKS(20));  // ≥18 мс LOW
   gpio_set_level(dht->gpio, 1);
-  esp_rom_delay_us(30);
+  esp_rom_delay_us(30);  // 20–40 мкс HIGH
   gpio_set_direction(dht->gpio, GPIO_MODE_INPUT);
   gpio_pullup_en(dht->gpio);
 
+  // Ждём ответ датчика: 80 мкс LOW + 80 мкс HIGH
   uint64_t timeout =
-      esp_timer_get_time() + 20000;
+      esp_timer_get_time() + 20000;  // 20 мс общий таймаут на ответ
   while (gpio_get_level(dht->gpio) == 1)
     if (esp_timer_get_time() > timeout) return DHT_TIMEOUT;
   while (gpio_get_level(dht->gpio) == 0)
@@ -37,6 +39,7 @@ static uint8_t dht22_read(dht22_t* dht) {
   while (gpio_get_level(dht->gpio) == 1)
     if (esp_timer_get_time() > timeout) return DHT_TIMEOUT;
 
+  // Читаем 40 бит
   for (int i = 0; i < 40; i++) {
     // Ждём переход 0→1 (начало бита)
     while (gpio_get_level(dht->gpio) == 0)
@@ -48,15 +51,14 @@ static uint8_t dht22_read(dht22_t* dht) {
       if (esp_timer_get_time() > timeout) return DHT_TIMEOUT;
 
     // Если HIGH был дольше ~50 мкс → бит = 1
-    if (esp_timer_get_time() - high_start > 50) 
-    {
+    if (esp_timer_get_time() - high_start > 50) {
       dht->data[i / 8] |= (1 << (7 - (i % 8)));
     }
   }
 
+  // Проверка контрольной суммы
   uint8_t checksum = dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3];
-  if (dht->data[4] != checksum) 
-  {
+  if (dht->data[4] != checksum) {
     return DHT_CHECKSUM_FAIL;
   }
 

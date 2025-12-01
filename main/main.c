@@ -7,12 +7,13 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "driver/gpio.h"
 #include "hal/adc_types.h"
 #include "nvs_flash.h"
 
 #include "dht22.h"
 #include "mq135.h"
-//#include "relay.h"
+#include "relay.h"
 #include "adc.h"
 #include "webserver.h"
 #include "display.h"
@@ -21,6 +22,7 @@
 static const char* TAG = "MAIN";
 
 #define DHT22_GPIO 18 
+#define RELAY_GPIO GPIO_NUM_27
 #define ADC_CHANNEL ADC_CHANNEL_0 //GPIO36 для mq135
 
 #define WIFI_AP_SSID "ESP32_METEO"
@@ -52,7 +54,6 @@ static void wifi_init_softap(void)
 
   ESP_LOGI(TAG, "WiFi AP started: SSID=%s", WIFI_AP_SSID);
 }
-
 void app_main(void) 
 {
     ESP_LOGI(TAG, "Инициализация метеостанции...");
@@ -66,7 +67,8 @@ void app_main(void)
 
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
-    
+
+    init_relay(RELAY_GPIO);
     // Инициализация общей структуры данных
     sensor_data_init();
     ESP_LOGI(TAG, "Структура данных сенсоров инициализирована");
@@ -89,7 +91,7 @@ void app_main(void)
     xTaskCreatePinnedToCore(mq_sensor_task, "mq_sensor_task", 4096, &mq_params, 5, NULL, 0);
     ESP_LOGI(TAG, "Задача MQ-135 создана");
     
-    xTaskCreatePinnedToCore(dht22_task, "dht22_task", 4096, &dht_params, 5, NULL, 0);
+    xTaskCreatePinnedToCore(dht22_task, "dht22_task", 4096, &dht_params, 5, NULL, 1);
     ESP_LOGI(TAG, "Задача DHT22 создана");
     
     // Запуск задачи отображения (на другом ядре для балансировки)

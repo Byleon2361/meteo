@@ -7,6 +7,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "sensor_data.h"
+#include "relay.h"
 
 static const char* TAG = "WEB";
 
@@ -50,58 +51,63 @@ static esp_err_t js_handler(httpd_req_t* req) {
   httpd_resp_send(req, (const char*)data, size);
   return ESP_OK;
 }
-
 static esp_err_t get_handler(httpd_req_t* req) {
   float temperature, humidity;
   bool dht_valid;
   sensor_data_get_dht(&temperature, &humidity, &dht_valid);
-  
+
   float co2_ppm, lpg_ppm, co_ppm, nh3_ppm;
   bool mq_valid;
   sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm, &mq_valid);
 
-  // ИСПРАВЛЕНО: правильные имена полей и добавлены пропущенные данные
-  char buf[256];  // Увеличил буфер
+  // Тестовые данные (позже замените на реальные)
+  char buf[256];
   int len = snprintf(buf, sizeof(buf), 
-      "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f}",
-      dht_valid ? temperature : 0.0f,
-      dht_valid ? humidity : 0.0f,
-      mq_valid ? co2_ppm : 0.0f,
-      mq_valid ? co_ppm : 0.0f,
-      mq_valid ? nh3_ppm : 0.0f,
-      mq_valid ? lpg_ppm : 0.0f
+      "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d,\"mq_valid\":%d}",
+      temperature, humidity, co2_ppm, co_ppm, nh3_ppm, lpg_ppm,
+      dht_valid ? 1 : 0, mq_valid ? 1 : 0
   );
   
-  httpd_resp_set_type(req, "application/json; charset=utf-8");
+  ESP_LOGI(TAG, "Отправляем JSON: %s", buf);
+  
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   httpd_resp_send(req, buf, len);
   return ESP_OK;
 }
-
-static esp_err_t set_handler(httpd_req_t* req) {
-  // char query[64];
-  // char param[8];
-  // int r = 0, g = 0, b = 0;
-  // if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
-  //   if (httpd_query_key_value(query, "r", param, sizeof(param)) == ESP_OK)
-  //     r = atoi(param);
-  //   if (httpd_query_key_value(query, "g", param, sizeof(param)) == ESP_OK)
-  //     g = atoi(param);
-  //   if (httpd_query_key_value(query, "b", param, sizeof(param)) == ESP_OK)
-  //     b = atoi(param);
-  // }
-  // if (r < 0) r = 0;
-  // if (r > 255) r = 255;
-  // if (g < 0) g = 0;
-  // if (g > 255) g = 255;
-  // if (b < 0) b = 0;
-  // if (b > 255) b = 255;
-  // rgb_led_set((uint8_t)r, (uint8_t)g, (uint8_t)b);
-  // color_storage_save((uint8_t)r, (uint8_t)g, (uint8_t)b);
-  // char resp[64];
-  // snprintf(resp, sizeof(resp), "OK R=%d G=%d B=%d", r, g, b);
-  // httpd_resp_set_type(req, "text/plain; charset=utf-8");
-  // httpd_resp_send(req, resp, strlen(resp));
-  return ESP_OK;
+// Добавьте в начало webserver.c, после других обработчиков
+static esp_err_t relay_handler(httpd_req_t* req) {
+    char query[64];
+    char state[8];
+    
+    // Получаем параметр state из URL
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        if (httpd_query_key_value(query, "state", state, sizeof(state)) == ESP_OK) {
+            
+            if (strcmp(state, "on") == 0) {
+                relay_on();
+                ESP_LOGI(TAG, "Реле ВКЛЮЧЕНО");
+                httpd_resp_send(req, "Реле ВКЛЮЧЕНО", HTTPD_RESP_USE_STRLEN);
+            } 
+            else if (strcmp(state, "off") == 0) {
+                relay_off();
+                ESP_LOGI(TAG, "Реле ВЫКЛЮЧЕНО");
+                httpd_resp_send(req, "Реле ВЫКЛЮЧЕНО", HTTPD_RESP_USE_STRLEN);
+            }
+            else {
+                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Неверный параметр state");
+                return ESP_FAIL;
+            }
+        } else {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Параметр state не найден");
+            return ESP_FAIL;
+        }
+    } else {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Ошибка парсинга query");
+        return ESP_FAIL;
+    }
+    
+    return ESP_OK;
 }
 void start_webserver(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -125,15 +131,17 @@ void start_webserver(void) {
                     .handler = js_handler,
                     .user_ctx = NULL};
   httpd_register_uri_handler(server, &js);
-  httpd_uri_t set = {.uri = "/set",
+  httpd_uri_t set = {.uri = "/relay",
                      .method = HTTP_GET,
-                     .handler = set_handler,
+                     .handler = relay_handler,
                      .user_ctx = NULL};
   httpd_register_uri_handler(server, &set);
-  httpd_uri_t get = {.uri = "/get",
-                     .method = HTTP_GET,
-                     .handler = get_handler,
-                     .user_ctx = NULL};
-  httpd_register_uri_handler(server, &get);
+httpd_uri_t get = {
+    .uri = "/get",
+    .method = HTTP_GET,
+    .handler = get_handler,
+    .user_ctx = NULL
+};
+httpd_register_uri_handler(server, &get);
   ESP_LOGI(TAG, "HTTP server started");
 }

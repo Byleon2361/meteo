@@ -3,62 +3,432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мониторинг датчиков</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>Мониторинг датчиков ESP32</title>
+    <link rel="stylesheet" href="/style.css?hash=__STYLE_HASH__">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Система мониторинга</h1>
-            <div class="status" id="status">Подключение...</div>
+            <h1><i class="icon">📊</i> Система мониторинга ESP32</h1>
+            <div class="status-container">
+                <div class="status" id="status">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Подключение...</span>
+                </div>
+                <div class="device-info">
+                    <span class="ip-info">IP: 192.168.4.1</span>
+                    <span class="time-info" id="currentTime">--:--:--</span>
+                </div>
+            </div>
         </header>
 
         <div class="sensors-grid">
-            <div class="sensor-card">
-                <h3>Температура</h3>
+            <!-- Температура -->
+            <div class="sensor-card temperature">
+                <div class="sensor-header">
+                    <h3><i class="sensor-icon">🌡️</i> Температура</h3>
+                    <div class="sensor-status" id="tempStatus"></div>
+                </div>
                 <div class="value" id="temperature">--</div>
                 <div class="unit">°C</div>
+                <div class="sensor-footer">
+                    <div class="sensor-range">
+                        <span class="range-min">-20</span>
+                        <div class="range-bar">
+                            <div class="range-fill" id="tempRange"></div>
+                        </div>
+                        <span class="range-max">60</span>
+                    </div>
+                </div>
             </div>
             
-            <div class="sensor-card">
-                <h3>Влажность</h3>
+            <!-- Влажность -->
+            <div class="sensor-card humidity">
+                <div class="sensor-header">
+                    <h3><i class="sensor-icon">💧</i> Влажность</h3>
+                    <div class="sensor-status" id="humStatus"></div>
+                </div>
                 <div class="value" id="humidity">--</div>
                 <div class="unit">%</div>
+                <div class="sensor-footer">
+                    <div class="sensor-range">
+                        <span class="range-min">0</span>
+                        <div class="range-bar">
+                            <div class="range-fill" id="humRange"></div>
+                        </div>
+                        <span class="range-max">100</span>
+                    </div>
+                </div>
             </div>
             
-            <div class="sensor-card">
-                <h3>CO₂</h3>
+            <!-- CO₂ -->
+            <div class="sensor-card co2">
+                <div class="sensor-header">
+                    <h3><i class="sensor-icon">☁️</i> CO₂</h3>
+                    <div class="sensor-status" id="co2Status"></div>
+                </div>
                 <div class="value" id="co2">--</div>
                 <div class="unit">ppm</div>
+                <div class="sensor-footer">
+                    <div class="quality-indicator">
+                        <span class="quality-label" id="co2Quality">--</span>
+                        <div class="quality-dots">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <div class="sensor-card">
-                <h3>CO</h3>
+            <!-- CO -->
+            <div class="sensor-card co">
+                <div class="sensor-header">
+                    <h3><i class="sensor-icon">🔥</i> CO</h3>
+                    <div class="sensor-status" id="coStatus"></div>
+                </div>
                 <div class="value" id="co">--</div>
                 <div class="unit">ppm</div>
+                <div class="sensor-footer">
+                    <div class="sensor-trend" id="coTrend">
+                        <span class="trend-icon">→</span>
+                        <span class="trend-text">Стабильно</span>
+                    </div>
+                </div>
             </div>
             
-            <div class="sensor-card">
-                <h3>LPG</h3>
+            <!-- LPG -->
+            <div class="sensor-card lpg">
+                <div class="sensor-header">
+                    <h3><i class="sensor-icon">⛽</i> LPG</h3>
+                    <div class="sensor-status" id="lpgStatus"></div>
+                </div>
                 <div class="value" id="lpg">--</div>
                 <div class="unit">ppm</div>
+                <div class="sensor-footer">
+                    <div class="alert-indicator" id="lpgAlert">
+                        <span class="alert-icon">⚠️</span>
+                        <span class="alert-text">Норма</span>
+                    </div>
+                </div>
             </div>
             
-            <div class="sensor-card">
-                <h3>NH₃</h3>
+            <!-- NH₃ -->
+            <div class="sensor-card nh3">
+                <div class="sensor-header">
+                    <h3><i class="sensor-icon">🧪</i> NH₃</h3>
+                    <div class="sensor-status" id="nh3Status"></div>
+                </div>
                 <div class="value" id="nh3">--</div>
                 <div class="unit">ppm</div>
+                <div class="sensor-footer">
+                    <div class="sensor-history">
+                        <div class="history-min">min: <span id="nh3Min">--</span></div>
+                        <div class="history-max">max: <span id="nh3Max">--</span></div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="info">
-            <div>Последнее обновление: <span id="lastUpdate">--</span></div>
-            <div id="updateTimer">Следующее обновление через: 5 сек</div>
+        <!-- Графики -->
+        <div class="charts-container">
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3><i class="chart-icon">📈</i> История температуры и влажности</h3>
+                    <div class="chart-controls">
+                        <select id="timeRange" class="time-select">
+                            <option value="10">10 мин</option>
+                            <option value="30" selected>30 мин</option>
+                            <option value="60">1 час</option>
+                            <option value="120">2 часа</option>
+                        </select>
+                        <button id="exportChart" class="chart-btn" title="Экспорт данных">
+                            <span class="btn-icon">💾</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="tempHumChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-section">
+                <div class="chart-header">
+                    <h3><i class="chart-icon">📉</i> Уровни газов</h3>
+                    <div class="chart-controls">
+                        <select id="chartType" class="type-select">
+                            <option value="line">Линия</option>
+                            <option value="bar">Столбцы</option>
+                        </select>
+                        <button id="toggleChart" class="chart-btn" title="Переключить график">
+                            <span class="btn-icon">🔄</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="gasChart" width="400" height="200"></canvas>
+                </div>
+            </div>
         </div>
-        
-        <button id="refreshBtn" class="refresh-btn">Обновить сейчас</button>
+
+        <!-- Панель управления и информации -->
+        <div class="control-panel">
+            <div class="info-section">
+                <h4><i class="info-icon">📋</i> Информация о системе</h4>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Последнее обновление:</span>
+                        <span class="info-value" id="lastUpdate">--:--:--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Следующее обновление:</span>
+                        <span class="info-value" id="nextUpdate">5 сек</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Статус DHT22:</span>
+                        <span class="info-value" id="dhtStatus">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Статус MQ-135:</span>
+                        <span class="info-value" id="mqStatus">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Всего обновлений:</span>
+                        <span class="info-value" id="totalUpdates">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Время работы:</span>
+                        <span class="info-value" id="uptime">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h4><i class="control-icon">🎮</i> Управление</h4>
+                <div class="control-buttons">
+                    <button id="refreshBtn" class="control-btn primary">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Обновить сейчас</span>
+                    </button>
+                    <button id="pauseBtn" class="control-btn secondary">
+                        <span class="btn-icon">⏸️</span>
+                        <span class="btn-text">Пауза</span>
+                    </button>
+                    <button id="clearBtn" class="control-btn warning">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">Очистить графики</span>
+                    </button>
+                    <button id="relayBtn" class="control-btn relay">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">Реле: ВЫКЛ</span>
+                    </button>
+                    <button id="alarmBtn" class="control-btn danger">
+                        <span class="btn-icon">🚨</span>
+                        <span class="btn-text">Тест аварии</span>
+                    </button>
+                </div>
+                
+                <div class="settings-section">
+                    <h5>Настройки обновления</h5>
+                    <div class="slider-container">
+                        <label for="updateInterval">Интервал обновления: <span id="intervalValue">5</span> сек</label>
+                        <input type="range" id="updateInterval" min="1" max="30" value="5" class="interval-slider">
+                    </div>
+                    <div class="checkbox-container">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autoRefresh" checked>
+                            <span class="checkmark"></span>
+                            Автоматическое обновление
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="showAlerts" checked>
+                            <span class="checkmark"></span>
+                            Показывать предупреждения
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="soundAlerts">
+                            <span class="checkmark"></span>
+                            Звуковые оповещения
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Лог событий -->
+        <div class="log-section">
+            <div class="log-header">
+                <h4><i class="log-icon">📝</i> Лог событий</h4>
+                <button id="clearLog" class="log-btn">Очистить лог</button>
+            </div>
+            <div class="log-container">
+                <div class="log-content" id="eventLog">
+                    <div class="log-entry info">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-message">Система инициализирована</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Футер -->
+        <footer>
+            <div class="footer-content">
+                <div class="footer-left">
+                    <div class="system-stats">
+                        <span class="stat">Память: <span id="memoryUsage">--</span>%</span>
+                        <span class="stat">Соединений: <span id="connections">1</span></span>
+                        <span class="stat">Версия: 1.0.0</span>
+                    </div>
+                </div>
+                <div class="footer-center">
+                    <div class="connection-quality">
+                        <span class="quality-text">Качество связи:</span>
+                        <div class="quality-bars">
+                            <div class="bar active"></div>
+                            <div class="bar active"></div>
+                            <div class="bar"></div>
+                            <div class="bar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-right">
+                    <div class="footer-links">
+                        <a href="#" class="footer-link" onclick="showAbout()">О системе</a>
+                        <span class="separator">|</span>
+                        <a href="#" class="footer-link" onclick="showHelp()">Помощь</a>
+                        <span class="separator">|</span>
+                        <a href="#" class="footer-link" onclick="exportData()">Экспорт</a>
+                    </div>
+                </div>
+            </div>
+            <div class="copyright">
+                © 2024 Система мониторинга ESP32 | 
+                <span id="pageLoadTime">Загрузка: -- мс</span>
+            </div>
+        </footer>
     </div>
 
-    <script src="/script.js"></script>
+    <!-- Модальное окно "О системе" -->
+    <div id="aboutModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>О системе мониторинга</h3>
+                <button class="modal-close" onclick="closeModal('aboutModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="about-info">
+                    <h4>Технические характеристики</h4>
+                    <ul>
+                        <li><strong>Микроконтроллер:</strong> ESP32</li>
+                        <li><strong>Датчики:</strong> DHT22 (температура/влажность), MQ-135 (газы)</li>
+                        <li><strong>Интерфейс:</strong> Веб-сервер на порту 80</li>
+                        <li><strong>Протокол:</strong> HTTP REST API</li>
+                        <li><strong>Обновление данных:</strong> Каждые 5 секунд</li>
+                        <li><strong>Графики:</strong> Canvas для визуализации</li> <!-- Изменили здесь -->
+                    </ul>
+                    
+                    <h4>Мониторируемые параметры</h4>
+                    <ul>
+                        <li>Температура: -40°C до 80°C</li>
+                        <li>Влажность: 0% до 100%</li>
+                        <li>CO₂: 0-5000 ppm</li>
+                        <li>CO: 0-1000 ppm</li>
+                        <li>LPG: 0-10000 ppm</li>
+                        <li>NH₃: 0-500 ppm</li>
+                    </ul>
+                    
+                    <h4>Пороги предупреждений</h4>
+                    <div class="thresholds">
+                        <div class="threshold-item">
+                            <span class="threshold-name">CO₂</span>
+                            <span class="threshold-value">> 1000 ppm</span>
+                            <span class="threshold-level warning">Предупреждение</span>
+                        </div>
+                        <div class="threshold-item">
+                            <span class="threshold-name">CO</span>
+                            <span class="threshold-value">> 50 ppm</span>
+                            <span class="threshold-level danger">Опасность</span>
+                        </div>
+                        <div class="threshold-item">
+                            <span class="threshold-name">LPG</span>
+                            <span class="threshold-value">> 1000 ppm</span>
+                            <span class="threshold-level danger">Взрывоопасно</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn" onclick="closeModal('aboutModal')">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Всплывающие уведомления -->
+    <div id="notificationArea" class="notification-area"></div>
+
+    <!-- Основной скрипт -->
+    <script src="/script.js?hash=__SCRIPT_HASH__"></script>
+    
+    <!-- Встроенные вспомогательные функции -->
+    <script>
+        // Глобальные функции для модальных окон
+        function showAbout() {
+            event.preventDefault();
+            document.getElementById('aboutModal').style.display = 'flex';
+        }
+        
+        function showHelp() {
+            event.preventDefault();
+            alert('Помощь:\n\n1. Данные обновляются автоматически каждые 5 секунд\n2. Нажмите "Пауза" чтобы остановить обновление\n3. Используйте слайдер для изменения интервала\n4. Графики показывают историю измерений\n5. Цвета указывают на уровень опасности');
+        }
+        
+        function exportData() {
+            event.preventDefault();
+            if (window.sensorMonitor && window.sensorMonitor.exportData) {
+                window.sensorMonitor.exportData();
+            } else {
+                alert('Функция экспорта будет доступна после загрузки данных');
+            }
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Закрытие модальных окон при клике вне их
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let modal of modals) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        };
+        
+        // Обновление текущего времени
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU');
+            const timeElement = document.getElementById('currentTime');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+        
+        // Обновление времени при загрузке и каждую секунду
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+        
+        // Измерение времени загрузки страницы
+        window.addEventListener('load', function() {
+            const loadTime = performance.now();
+            const loadTimeElement = document.getElementById('pageLoadTime');
+            if (loadTimeElement) {
+                loadTimeElement.textContent = `Загрузка: ${Math.round(loadTime)} мс`;
+            }
+        });
+    </script>
 </body>
 </html>
