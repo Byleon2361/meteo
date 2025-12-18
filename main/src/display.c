@@ -10,17 +10,14 @@ void display_task(void *pvParameter) {
     ESP_LOGI(TAG, "Задача отображения запущена");
     
     while (1) {
-        // Чтение данных DHT22
         float temperature, humidity;
         bool dht_valid;
         sensor_data_get_dht(&temperature, &humidity, &dht_valid);
         
-        // Чтение данных MQ-135
         float co2_ppm, lpg_ppm, co_ppm, nh3_ppm;
         bool mq_valid;
         sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm, &mq_valid);
         
-        // Синхронизированный вывод
         ESP_LOGI(TAG, "========== СЕНСОРНЫЕ ДАННЫЕ ==========");
         
         if (dht_valid) {
@@ -41,6 +38,6 @@ void display_task(void *pvParameter) {
         
         ESP_LOGI(TAG, "======================================");
         
-        vTaskDelay(pdMS_TO_TICKS(5000));  // Вывод каждые 5 секунд
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }

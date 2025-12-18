@@ -21,7 +21,7 @@
 
 static const char* TAG = "MAIN";
 
-#define DHT22_GPIO 18 
+#define DHT22_GPIO GPIO_NUM_18 
 #define RELAY_GPIO GPIO_NUM_27
 #define ADC_CHANNEL ADC_CHANNEL_0 //GPIO36 для mq135
 

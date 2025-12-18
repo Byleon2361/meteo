@@ -2,6 +2,7 @@ class SensorMonitor {
   constructor() {
     this.updateInterval = null;
     this.countdown = 5;
+    this.currentInterval = 5000; // Текущий интервал в миллисекундах
     this.isPaused = false;
     this.updateCount = 0;
     this.startTime = Date.now();
@@ -310,21 +311,62 @@ class SensorMonitor {
   startPolling() {
     this.fetchData();
     
+    // Очищаем предыдущий интервал, если он есть
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+    }
+    
     this.updateInterval = setInterval(() => {
       if (!this.isPaused) {
         this.fetchData();
       }
-    }, 5000);
+    }, this.currentInterval);
     
     this.startCountdown();
   }
 
+  // Обновление интервала опроса
+  updatePollingInterval(newIntervalSeconds) {
+    const newIntervalMs = newIntervalSeconds * 1000;
+    this.currentInterval = newIntervalMs;
+    
+    // Обновляем обратный отсчет
+    this.countdown = newIntervalSeconds;
+    
+    // Очищаем старый интервал
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+    }
+    
+    // Создаем новый интервал
+    this.updateInterval = setInterval(() => {
+      if (!this.isPaused) {
+        this.fetchData();
+      }
+    }, newIntervalMs);
+    
+    // Немедленно обновляем отображение следующего обновления
+    const nextUpdateEl = document.getElementById('nextUpdate');
+    if (nextUpdateEl) {
+      nextUpdateEl.textContent = `${this.countdown} сек`;
+    }
+    
+    console.log(`Интервал обновления изменен на ${newIntervalSeconds} секунд`);
+    this.addLogEntry('info', `Интервал обновления изменен на ${newIntervalSeconds} секунд`);
+  }
+
   startCountdown() {
-    setInterval(() => {
+    // Очищаем предыдущий счетчик, если он существует
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
+    
+    this.countdownInterval = setInterval(() => {
       if (!this.isPaused) {
         this.countdown--;
         if (this.countdown <= 0) {
-          this.countdown = 5;
+          // Сбрасываем счетчик до текущего интервала в секундах
+          this.countdown = Math.floor(this.currentInterval / 1000);
         }
         const nextUpdateEl = document.getElementById('nextUpdate');
         if (nextUpdateEl) {
@@ -335,7 +377,11 @@ class SensorMonitor {
   }
 
   startUptimeCounter() {
-    setInterval(() => {
+    if (this.uptimeInterval) {
+      clearInterval(this.uptimeInterval);
+    }
+    
+    this.uptimeInterval = setInterval(() => {
       const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
       const hours = Math.floor(uptimeSeconds / 3600);
       const minutes = Math.floor((uptimeSeconds % 3600) / 60);
@@ -385,50 +431,51 @@ class SensorMonitor {
       this.setConnectionStatus(false, 'Ошибка соединения');
     }
   }
-updateDisplay(data) {
-  const timestamp = new Date().toLocaleTimeString();
-  
-  // ОТЛАДКА: выводим в консоль перед обновлением
-  console.log('Обновление данных на странице:', data);
-  
-  // Обновляем значения с проверкой
-  this.updateValue('temperature', data.temperature);
-  this.updateValue('humidity', data.humidity);
-  this.updateValue('co2', data.CO2);
-  this.updateValue('co', data.CO);
-  this.updateValue('lpg', data.LPG);
-  this.updateValue('nh3', data.NH3);
-  
-  // Время обновления
-  const lastUpdateEl = document.getElementById('lastUpdate');
-  if (lastUpdateEl) {
-    console.log('Обновление времени:', timestamp);
-    lastUpdateEl.textContent = timestamp;
-  }
-  
-  // Статусы датчиков
-  this.updateSensorStatus(data);
-  
-  // Визуальные индикаторы
-  this.updateVisualIndicators(data);
-}
 
-updateValue(elementId, value) {
-  const element = document.getElementById(elementId);
-  if (element) {
-    console.log(`Обновление ${elementId}:`, value);
+  updateDisplay(data) {
+    const timestamp = new Date().toLocaleTimeString();
     
-    if (value === undefined || value === null) {
-      element.textContent = '--';
-      element.style.color = '#95a5a6';
-    } else {
-      element.textContent = value.toFixed(2);
-      element.style.color = '';
+    // ОТЛАДКА: выводим в консоль перед обновлением
+    console.log('Обновление данных на странице:', data);
+    
+    // Обновляем значения с проверкой
+    this.updateValue('temperature', data.temperature);
+    this.updateValue('humidity', data.humidity);
+    this.updateValue('co2', data.CO2);
+    this.updateValue('co', data.CO);
+    this.updateValue('lpg', data.LPG);
+    this.updateValue('nh3', data.NH3);
+    
+    // Время обновления
+    const lastUpdateEl = document.getElementById('lastUpdate');
+    if (lastUpdateEl) {
+      console.log('Обновление времени:', timestamp);
+      lastUpdateEl.textContent = timestamp;
     }
-  } else {
-    console.error(`Элемент ${elementId} не найден!`);
+    
+    // Статусы датчиков
+    this.updateSensorStatus(data);
+    
+    // Визуальные индикаторы
+    this.updateVisualIndicators(data);
   }
-}
+
+  updateValue(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+      console.log(`Обновление ${elementId}:`, value);
+      
+      if (value === undefined || value === null) {
+        element.textContent = '--';
+        element.style.color = '#95a5a6';
+      } else {
+        element.textContent = value.toFixed(2);
+        element.style.color = '';
+      }
+    } else {
+      console.error(`Элемент ${elementId} не найден!`);
+    }
+  }
 
   setConnectionStatus(connected, message) {
     const statusElement = document.getElementById('status');
@@ -481,6 +528,7 @@ updateValue(elementId, value) {
       humRange.style.background = humValue > 80 ? '#e74c3c' : humValue > 60 ? '#f39c12' : '#2ecc71';
     }
   }
+
   setupEventListeners() {
     // Кнопка обновления
     const refreshBtn = document.getElementById('refreshBtn');
@@ -493,10 +541,17 @@ updateValue(elementId, value) {
     if (pauseBtn) {
       pauseBtn.addEventListener('click', () => {
         this.isPaused = !this.isPaused;
-        pauseBtn.textContent = this.isPaused ? '▶️ Продолжить' : '⏸️ Пауза';
+        const btnIcon = pauseBtn.querySelector('.btn-icon');
+        const btnText = pauseBtn.querySelector('.btn-text');
+        
+        if (btnIcon) btnIcon.textContent = this.isPaused ? '▶️' : '⏸️';
+        if (btnText) btnText.textContent = this.isPaused ? 'Продолжить' : 'Пауза';
+        
         pauseBtn.classList.toggle('paused', this.isPaused);
         
         if (!this.isPaused) {
+          // При продолжении сразу обновляем данные и сбрасываем счетчик
+          this.countdown = Math.floor(this.currentInterval / 1000);
           this.fetchData();
         }
       });
@@ -516,10 +571,11 @@ updateValue(elementId, value) {
           nh3: []
         };
         this.updateCharts();
+        this.addLogEntry('info', 'Графики очищены');
       });
     }
     
-    // КНОПКА РЕЛЕ - ДОБАВЬТЕ ЭТО
+    // Кнопка реле
     const relayBtn = document.getElementById('relayBtn');
     if (relayBtn) {
       relayBtn.addEventListener('click', () => {
@@ -527,31 +583,47 @@ updateValue(elementId, value) {
       });
     }
     
-    // Кнопка теста аварии
-    const alarmBtn = document.getElementById('alarmBtn');
-    if (alarmBtn) {
-      alarmBtn.addEventListener('click', () => {
-        this.testAlarm();
-      });
-    }
-    
-    // Слайдер интервала
+    // Слайдер интервала - ФИКСИРУЕМ ЭТОТ КОД
     const intervalSlider = document.getElementById('updateInterval');
     const intervalValue = document.getElementById('intervalValue');
     if (intervalSlider && intervalValue) {
+      // Обновляем отображение значения при перемещении ползунка
       intervalSlider.addEventListener('input', (e) => {
         const value = e.target.value;
         intervalValue.textContent = value;
       });
       
+      // При изменении интервала - обновляем систему опроса
       intervalSlider.addEventListener('change', (e) => {
-        const newInterval = parseInt(e.target.value) * 1000;
-        clearInterval(this.updateInterval);
-        this.updateInterval = setInterval(() => {
-          if (!this.isPaused) {
-            this.fetchData();
+        const newInterval = parseInt(e.target.value);
+        this.updatePollingInterval(newInterval);
+      });
+    }
+    
+    // Чекбокс автоматического обновления
+    const autoRefreshCheckbox = document.getElementById('autoRefresh');
+    if (autoRefreshCheckbox) {
+      autoRefreshCheckbox.addEventListener('change', (e) => {
+        if (!e.target.checked) {
+          // Если автоматическое обновление выключено
+          if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
           }
-        }, newInterval);
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+          }
+          const nextUpdateEl = document.getElementById('nextUpdate');
+          if (nextUpdateEl) {
+            nextUpdateEl.textContent = 'выкл';
+          }
+          this.addLogEntry('info', 'Автоматическое обновление отключено');
+        } else {
+          // Если автоматическое обновление включено
+          this.startPolling();
+          this.addLogEntry('info', 'Автоматическое обновление включено');
+        }
       });
     }
     
@@ -567,8 +639,6 @@ updateValue(elementId, value) {
       });
     }
   }
-
-  // ДОБАВЬТЕ ЭТИ МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ РЕЛЕ:
 
   // Переключение реле
   toggleRelay() {
@@ -627,49 +697,6 @@ updateValue(elementId, value) {
     } catch (error) {
       console.error('Ошибка управления реле:', error);
       this.addLogEntry('error', `Ошибка управления реле: ${error.message}`);
-    }
-  }
-
-  // Тест аварии
-  testAlarm() {
-    // Визуальный эффект
-    document.body.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)';
-    setTimeout(() => {
-      document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    }, 2000);
-    
-    // Звуковое оповещение (если включено)
-    if (document.getElementById('soundAlerts')?.checked) {
-      this.playAlertSound();
-    }
-    
-    // Запись в лог
-    this.addLogEntry('warning', 'ТЕСТ: Аварийная ситуация!');
-    
-    alert('⚠️ ТЕСТОВОЕ АВАРИЙНОЕ ОПОВЕЩЕНИЕ\n\nПроверка системы оповещений.');
-  }
-
-  // Воспроизведение звука оповещения
-  playAlertSound() {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
-      
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
-      
-    } catch (error) {
-      console.warn('Не удалось воспроизвести звук:', error);
     }
   }
 

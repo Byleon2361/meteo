@@ -82,7 +82,6 @@
                 </div>
             </div>
             
-            <!-- CO -->
             <div class="sensor-card co">
                 <div class="sensor-header">
                     <h3><i class="sensor-icon">🔥</i> CO</h3>
@@ -98,7 +97,7 @@
                 </div>
             </div>
             
-            <!-- LPG -->
+            
             <div class="sensor-card lpg">
                 <div class="sensor-header">
                     <h3><i class="sensor-icon">⛽</i> LPG</h3>
@@ -113,8 +112,7 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- NH₃ -->
+
             <div class="sensor-card nh3">
                 <div class="sensor-header">
                     <h3><i class="sensor-icon">🧪</i> NH₃</h3>
@@ -223,10 +221,13 @@
                         <span class="btn-icon">⚡</span>
                         <span class="btn-text">Реле: ВЫКЛ</span>
                     </button>
+                    <!-- ТЕСТ АВАРИИ - ЗАКОММЕНТИРОВАНО -->
+                    <!--
                     <button id="alarmBtn" class="control-btn danger">
                         <span class="btn-icon">🚨</span>
                         <span class="btn-text">Тест аварии</span>
                     </button>
+                    -->
                 </div>
                 
                 <div class="settings-section">
@@ -304,7 +305,7 @@
                 </div>
             </div>
             <div class="copyright">
-                © 2024 Система мониторинга ESP32 | 
+                © 2025 Система мониторинга ESP32 | 
                 <span id="pageLoadTime">Загрузка: -- мс</span>
             </div>
         </footer>
@@ -355,7 +356,7 @@
                             <span class="threshold-name">LPG</span>
                             <span class="threshold-value">> 1000 ppm</span>
                             <span class="threshold-level danger">Взрывоопасно</span>
-                        </div>
+                        </div>  
                     </div>
                 </div>
             </div>
@@ -369,7 +370,7 @@
     <div id="notificationArea" class="notification-area"></div>
 
     <!-- Основной скрипт -->
-    <script src="/script.js?hash=15584e88"></script>
+    <script src="/script.js?hash=e8260d2e"></script>
     
     <!-- Встроенные вспомогательные функции -->
     <script>
