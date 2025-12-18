@@ -8,6 +8,7 @@ idf_component_register(
         "src/webserver.c"
         "src/sensor_data.c"
         "src/display.c"
+        "src/bmp280.c"
     INCLUDE_DIRS 
         "include"
     EMBED_FILES

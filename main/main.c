@@ -21,7 +21,7 @@
 
 static const char* TAG = "MAIN";
 
-#define DHT22_GPIO GPIO_NUM_18 
+#define DHT22_GPIO GPIO_NUM_4
 #define RELAY_GPIO GPIO_NUM_27
 #define ADC_CHANNEL ADC_CHANNEL_0 //GPIO36 для mq135
 
@@ -106,3 +106,87 @@ void app_main(void)
         vTaskDelay(portMAX_DELAY);
     }
 }
+// #include <stdio.h>
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/task.h"
+// #include "driver/i2c.h"
+// #include "esp_log.h"
+// #include "bmp280.h"
+
+// // Конфигурация I2C
+// #define I2C_MASTER_SCL_IO     22
+// #define I2C_MASTER_SDA_IO     21
+// #define I2C_MASTER_FREQ_HZ    100000
+// #define I2C_MASTER_PORT       I2C_NUM_0
+
+// static const char *TAG = "MAIN";
+
+// static void i2c_master_init(void) {
+//     i2c_config_t conf = {
+//         .mode = I2C_MODE_MASTER,
+//         .sda_io_num = I2C_MASTER_SDA_IO,
+//         .scl_io_num = I2C_MASTER_SCL_IO,
+//         .sda_pullup_en = GPIO_PULLUP_ENABLE,
+//         .scl_pullup_en = GPIO_PULLUP_ENABLE,
+//         .master.clk_speed = I2C_MASTER_FREQ_HZ,
+//     };
+    
+//     ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_PORT, &conf));
+//     ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_PORT, conf.mode, 0, 0, 0));
+// }
+
+// void app_main(void) {
+//     ESP_LOGI(TAG, "Starting BMP280 example");
+    
+//     // Инициализация I2C
+//     i2c_master_init();
+//     ESP_LOGI(TAG, "I2C initialized");
+    
+//     // Инициализация датчика
+//     bmp280_dev_t sensor;
+//     esp_err_t err = bmp280_init(&sensor, I2C_MASTER_PORT, 0);
+//     if (err != ESP_OK) {
+//         ESP_LOGE(TAG, "Failed to initialize sensor");
+//         return;
+//     }
+    
+//     ESP_LOGI(TAG, "BMP280 initialized successfully");
+    
+//     // Настройка параметров
+//     bmp280_config_t config = {
+//         .osrs_t = BMP280_OS_2X,
+//         .osrs_p = BMP280_OS_16X,
+//         .filter = BMP280_FILTER_16,
+//         .mode = BMP280_NORMAL_MODE,
+//     };
+    
+//     err = bmp280_set_config(&sensor, &config);
+//     if (err != ESP_OK) {
+//         ESP_LOGE(TAG, "Failed to configure sensor");
+//         return;
+//     }
+    
+//     ESP_LOGI(TAG, "Sensor configured, starting measurements...");
+    
+//     // Главный цикл измерений
+//     while (1) {
+//         float temperature, pressure;
+        
+//         err = bmp280_read_data(&sensor, &temperature, &pressure);
+//         if (err != ESP_OK) {
+//             ESP_LOGE(TAG, "Failed to read sensor data");
+//         } else {
+//             float pressure_hPa = pressure / 100.0f;
+//             float pressure_mmHg = pressure_hPa * 0.750062;
+            
+//             printf("\n=== BMP280 MEASUREMENTS ===\n");
+//             printf("Temperature: %.2f °C\n", temperature);
+//             printf("Pressure:    %.2f Pa\n", pressure);
+//             printf("Pressure:    %.2f hPa\n", pressure_hPa);
+//             printf("Pressure:    %.2f mmHg\n", pressure_mmHg);
+//             printf("============================\n");
+//         }
+        
+//         vTaskDelay(pdMS_TO_TICKS(2000));
+//     }
+// }
