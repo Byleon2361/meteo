@@ -1,5 +1,6 @@
 #include "webserver.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,19 +54,17 @@ static esp_err_t js_handler(httpd_req_t* req) {
 }
 static esp_err_t get_handler(httpd_req_t* req) {
   float temperature, humidity;
-  bool dht_valid;
+  uint8_t dht_valid;
   sensor_data_get_dht(&temperature, &humidity, &dht_valid);
 
   float co2_ppm, lpg_ppm, co_ppm, nh3_ppm;
-  bool mq_valid;
-  sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm, &mq_valid);
+  sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm);
 
-  // Тестовые данные (позже замените на реальные)
   char buf[256];
   int len = snprintf(buf, sizeof(buf), 
-      "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d,\"mq_valid\":%d}",
+      "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d}",
       temperature, humidity, co2_ppm, co_ppm, nh3_ppm, lpg_ppm,
-      dht_valid ? 1 : 0, mq_valid ? 1 : 0
+      dht_valid ? 1 : 0
   );
   
   ESP_LOGI(TAG, "Отправляем JSON: %s", buf);
@@ -75,7 +74,7 @@ static esp_err_t get_handler(httpd_req_t* req) {
   httpd_resp_send(req, buf, len);
   return ESP_OK;
 }
-// Добавьте в начало webserver.c, после других обработчиков
+
 static esp_err_t relay_handler(httpd_req_t* req) {
     char query[64];
     char state[8];
