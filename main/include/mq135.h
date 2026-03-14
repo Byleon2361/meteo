@@ -7,13 +7,14 @@
 #define CALIBRATION_SAMPLE_INTERVAL 50
 
 typedef struct {
-  float rs_ro_ratio;
-  float ppm;
-  int raw_adc;
+    float rs_ro_ratio;
+    float ppm;
+    int raw_adc;
 } mq_sensor_data_t;
 
 typedef struct {
-  adc_channel_t channel;
+    adc_channel_t channel;
+    uint8_t task_delay_s;
 } mq_params_data_t;
 
 void mq_sensor_task(void* pvParameter);

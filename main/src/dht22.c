@@ -7,85 +7,81 @@
 #include "freertos/task.h"
 #include "sensor_data.h"
 
-static const char *TAG = "DHT22";
+static const char* TAG = "DHT22";
 
-static uint8_t dht22_read(dht22_t *dht)
+static uint8_t dht22_read(dht22_t* dht)
 {
-  uint64_t start_time = esp_timer_get_time();
+    uint64_t start_time = esp_timer_get_time();
 
-  if (start_time - dht->last_read_time < 2000000)
-  {
-    return DHT_TIMEOUT;
-  }
-
-  memset(dht->data, 0, 5);
-
-  gpio_set_direction(dht->gpio, GPIO_MODE_OUTPUT);
-  gpio_set_level(dht->gpio, 0);
-  vTaskDelay(pdMS_TO_TICKS(20));
-  gpio_set_level(dht->gpio, 1);
-  esp_rom_delay_us(30);
-  gpio_set_direction(dht->gpio, GPIO_MODE_INPUT);
-  gpio_pullup_en(dht->gpio);
-
-  uint64_t timeout = esp_timer_get_time() + 20000;
-  while (gpio_get_level(dht->gpio) == 1)
-    if (esp_timer_get_time() > timeout)
-      return DHT_TIMEOUT;
-  while (gpio_get_level(dht->gpio) == 0)
-    if (esp_timer_get_time() > timeout)
-      return DHT_TIMEOUT;
-  while (gpio_get_level(dht->gpio) == 1)
-    if (esp_timer_get_time() > timeout)
-      return DHT_TIMEOUT;
-
-  for (int i = 0; i < 40; i++)
-  {
-    while (gpio_get_level(dht->gpio) == 0)
-      if (esp_timer_get_time() > timeout)
+    if (start_time - dht->last_read_time < 2000000) {
         return DHT_TIMEOUT;
-    uint64_t high_start = esp_timer_get_time();
-
-    while (gpio_get_level(dht->gpio) == 1)
-      if (esp_timer_get_time() > timeout)
-        return DHT_TIMEOUT;
-
-    if (esp_timer_get_time() - high_start > 50)
-    {
-      dht->data[i / 8] |= (1 << (7 - (i % 8)));
     }
-  }
 
-  uint8_t checksum = dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3];
-  if (dht->data[4] != checksum)
-  {
-    return DHT_CHECKSUM_FAIL;
-  }
+    memset(dht->data, 0, 5);
 
-  dht->last_read_time = esp_timer_get_time();
-  return DHT_OK;
+    gpio_set_direction(dht->gpio, GPIO_MODE_OUTPUT);
+    gpio_set_level(dht->gpio, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    gpio_set_level(dht->gpio, 1);
+    esp_rom_delay_us(30);
+    gpio_set_direction(dht->gpio, GPIO_MODE_INPUT);
+    gpio_pullup_en(dht->gpio);
+
+    uint64_t timeout = esp_timer_get_time() + 20000;
+    while (gpio_get_level(dht->gpio) == 1)
+        if (esp_timer_get_time() > timeout)
+            return DHT_TIMEOUT;
+    while (gpio_get_level(dht->gpio) == 0)
+        if (esp_timer_get_time() > timeout)
+            return DHT_TIMEOUT;
+    while (gpio_get_level(dht->gpio) == 1)
+        if (esp_timer_get_time() > timeout)
+            return DHT_TIMEOUT;
+
+    for (int i = 0; i < 40; i++) {
+        while (gpio_get_level(dht->gpio) == 0)
+            if (esp_timer_get_time() > timeout)
+                return DHT_TIMEOUT;
+        uint64_t high_start = esp_timer_get_time();
+
+        while (gpio_get_level(dht->gpio) == 1)
+            if (esp_timer_get_time() > timeout)
+                return DHT_TIMEOUT;
+
+        if (esp_timer_get_time() - high_start > 50) {
+            dht->data[i / 8] |= (1 << (7 - (i % 8)));
+        }
+    }
+
+    uint8_t checksum
+            = dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3];
+    if (dht->data[4] != checksum) {
+        return DHT_CHECKSUM_FAIL;
+    }
+
+    dht->last_read_time = esp_timer_get_time();
+    return DHT_OK;
 }
 
-void dht22_task(void *dht_params)
+void dht22_task(void* dht_params)
 {
-  dht_params_data_t *params = (dht_params_data_t *)dht_params;
-  ESP_LOGI(TAG, "Запуск DHT22 на GPIO%d", params->gpio);
+    dht_params_data_t* params = (dht_params_data_t*)dht_params;
+    ESP_LOGI(TAG, "Запуск DHT22 на GPIO%d", params->gpio);
 
-  dht22_t dht = {.gpio = params->gpio, .last_read_time = 0};
-  gpio_reset_pin(dht.gpio);
-  gpio_set_pull_mode(dht.gpio, GPIO_PULLUP_ONLY);
-
-  vTaskDelay(pdMS_TO_TICKS(2500));
-
-  while (1)
-  {
-    uint8_t result = dht22_read(&dht);
-
-    float humidity = dht.data[0] + dht.data[1] / 10.0f;
-    float temperature = dht.data[2] + dht.data[3] / 10.0f;
-
-    sensor_data_set_dht(temperature, humidity, result);
+    dht22_t dht = {.gpio = params->gpio, .last_read_time = 0};
+    gpio_reset_pin(dht.gpio);
+    gpio_set_pull_mode(dht.gpio, GPIO_PULLUP_ONLY);
 
     vTaskDelay(pdMS_TO_TICKS(2500));
-  }
+
+    while (1) {
+        uint8_t result = dht22_read(&dht);
+
+        float humidity = dht.data[0] + dht.data[1] / 10.0f;
+        float temperature = dht.data[2] + dht.data[3] / 10.0f;
+
+        sensor_data_set_dht(temperature, humidity, result);
+
+        vTaskDelay(pdMS_TO_TICKS(2500));
+    }
 }
