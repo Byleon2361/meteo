@@ -66,19 +66,44 @@ static esp_err_t get_handler(httpd_req_t* req)
     float co2_ppm, lpg_ppm, co_ppm, nh3_ppm;
     sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm);
 
-    char buf[256];
-    int len = snprintf(
-            buf,
-            sizeof(buf),
-            "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,"
-            "\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d}",
-            temperature,
-            humidity,
-            co2_ppm,
-            co_ppm,
-            nh3_ppm,
-            lpg_ppm,
-            dht_valid ? 1 : 0);
+    uint16_t pm1_0, pm2_5, pm10;
+    uint8_t pms_valid;
+    sensor_data_get_pms5003(&pm1_0, &pm2_5, &pm10, &pms_valid);
+
+    char buf[320];
+    int len;
+    if (pms_valid) {
+        len = snprintf(
+                buf,
+                sizeof(buf),
+                "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,"
+                "\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d,"
+                "\"pm1_0\":%u,\"pm2_5\":%u,\"pm10\":%u}",
+                temperature,
+                humidity,
+                co2_ppm,
+                co_ppm,
+                nh3_ppm,
+                lpg_ppm,
+                dht_valid ? 1 : 0,
+                pm1_0,
+                pm2_5,
+                pm10);
+    } else {
+        len = snprintf(
+                buf,
+                sizeof(buf),
+                "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,"
+                "\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d,"
+                "\"pm1_0\":null,\"pm2_5\":null,\"pm10\":null}",
+                temperature,
+                humidity,
+                co2_ppm,
+                co_ppm,
+                nh3_ppm,
+                lpg_ppm,
+                dht_valid ? 1 : 0);
+    }
 
     ESP_LOGI(TAG, "Отправляем JSON: %s", buf);
 

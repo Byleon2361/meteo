@@ -88,3 +88,25 @@ void sensor_data_get_mq(float* co2, float* lpg, float* co, float* nh3)
         xSemaphoreGive(sensor_data.mutex);
     }
 }
+
+void sensor_data_set_pms5003(const pms5003_data_t *data)
+{
+    if (xSemaphoreTake(sensor_data.mutex, portMAX_DELAY) == pdTRUE) {
+        sensor_data.pm1_0    = data->pm1_0;
+        sensor_data.pm2_5    = data->pm2_5;
+        sensor_data.pm10     = data->pm10;
+        sensor_data.pms_valid = 1;
+        xSemaphoreGive(sensor_data.mutex);
+    }
+}
+ 
+void sensor_data_get_pms5003(uint16_t* pm1_0, uint16_t* pm2_5, uint16_t* pm10, uint8_t* valid)
+{
+    if (xSemaphoreTake(sensor_data.mutex, portMAX_DELAY) == pdTRUE) {
+        *pm1_0 = sensor_data.pm1_0;
+        *pm2_5 = sensor_data.pm2_5;
+        *pm10  = sensor_data.pm10;
+        *valid = sensor_data.pms_valid;
+        xSemaphoreGive(sensor_data.mutex);
+    }
+}

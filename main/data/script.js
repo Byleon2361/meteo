@@ -11,6 +11,7 @@ class SensorMonitor {
     // Графики на чистом Canvas
     this.tempHumChart = null;
     this.gasChart = null;
+    this.dustChart = null;
     
     // Данные для истории
     this.history = {
@@ -20,7 +21,10 @@ class SensorMonitor {
       co2: [],
       co: [],
       lpg: [],
-      nh3: []
+      nh3: [],
+      pm1_0: [],
+      pm2_5: [],
+      pm10:  []
     };
     this.maxHistoryPoints = 20;
     
@@ -46,6 +50,7 @@ class SensorMonitor {
   setupCharts() {
     const tempHumCanvas = document.getElementById('tempHumChart');
     const gasCanvas = document.getElementById('gasChart');
+    const dustCanvas = document.getElementById('dustChart');
     
     if (tempHumCanvas) {
       this.initializeTempHumChart(tempHumCanvas);
@@ -53,6 +58,9 @@ class SensorMonitor {
     
     if (gasCanvas) {
       this.initializeGasChart(gasCanvas);
+    }
+    if (dustCanvas) {
+      this.initializeDustChart(dustCanvas);
     }
   }
 
@@ -270,7 +278,43 @@ class SensorMonitor {
       console.error('Ошибка инициализации графика газов:', error);
     }
   }
-
+  initializeDustChart(canvas) {
+      const ctx = canvas.getContext('2d');
+      this.dustChart = {
+          ctx, width: canvas.width, height: canvas.height,
+          draw(data) {
+              this.ctx.clearRect(0, 0, this.width, this.height);
+              if (!data || data.timestamps.length < 2) {
+                  this.ctx.font = '16px Arial'; this.ctx.fillStyle = '#95a5a6';
+                  this.ctx.textAlign = 'center';
+                  this.ctx.fillText('Ожидание данных PMS5003...', this.width/2, this.height/2);
+                  this.ctx.textAlign = 'left'; return;
+              }
+              // сетка
+              this.ctx.strokeStyle = '#eee'; this.ctx.lineWidth = 1;
+              for (let i = 0; i <= 5; i++) {
+                  const x = i * this.width / 5, y = i * this.height / 5;
+                  this.ctx.beginPath(); this.ctx.moveTo(x,0); this.ctx.lineTo(x,this.height); this.ctx.stroke();
+                  this.ctx.beginPath(); this.ctx.moveTo(0,y); this.ctx.lineTo(this.width,y); this.ctx.stroke();
+              }
+              // линии
+              [['pm1_0','#3498db','PM1.0'],['pm2_5','#e67e22','PM2.5'],['pm10','#e74c3c','PM10']].forEach(([key,color,label], i) => {
+                  const values = data[key];
+                  if (!values || values.length < 2) return;
+                  const max = Math.max(...values), min = Math.min(...values), range = max - min || 1;
+                  this.ctx.strokeStyle = color; this.ctx.lineWidth = 2; this.ctx.beginPath();
+                  values.forEach((v, idx) => {
+                      const x = idx * this.width / (values.length - 1);
+                      const y = this.height - ((v - min) / range * this.height * 0.8) - this.height * 0.1;
+                      idx === 0 ? this.ctx.moveTo(x,y) : this.ctx.lineTo(x,y);
+                  });
+                  this.ctx.stroke();
+                  this.ctx.fillStyle = color; this.ctx.font = '12px Arial';
+                  this.ctx.fillText(label, 10, 20 + i * 20);
+              });
+          }
+      };
+  }
   // Добавление данных в историю
   addToHistory(data, timestamp) {
     this.history.timestamps.push(timestamp);
@@ -280,6 +324,9 @@ class SensorMonitor {
     this.history.co.push(data.CO || 0);
     this.history.lpg.push(data.LPG || 0);
     this.history.nh3.push(data.NH3 || 0);
+    this.history.pm1_0.push(data.pm1_0 ?? 0);
+    this.history.pm2_5.push(data.pm2_5 ?? 0);
+    this.history.pm10.push(data.pm10   ?? 0);
     
     // Ограничиваем историю
     if (this.history.timestamps.length > this.maxHistoryPoints) {
@@ -290,6 +337,9 @@ class SensorMonitor {
       this.history.co.shift();
       this.history.lpg.shift();
       this.history.nh3.shift();
+      this.history.pm1_0.shift();
+      this.history.pm2_5.shift();
+      this.history.pm10.shift();
     }
     
     // Обновляем графики
@@ -304,6 +354,10 @@ class SensorMonitor {
     
     if (this.gasChart && this.gasChart.draw) {
       this.gasChart.draw(this.history);
+    }
+
+    if (this.dustChart && this.dustChart.draw) {
+      this.dustChart.draw(this.history);
     }
   }
 
@@ -445,6 +499,7 @@ class SensorMonitor {
     this.updateValue('co', data.CO);
     this.updateValue('lpg', data.LPG);
     this.updateValue('nh3', data.NH3);
+    this.updateDust(data)
     
     // Время обновления
     const lastUpdateEl = document.getElementById('lastUpdate');
@@ -568,7 +623,10 @@ class SensorMonitor {
           co2: [],
           co: [],
           lpg: [],
-          nh3: []
+          nh3: [],
+          pm1_0: [],
+          pm2_5: [],
+          pm10: []
         };
         this.updateCharts();
         this.addLogEntry('info', 'Графики очищены');
@@ -721,6 +779,79 @@ class SensorMonitor {
       }
     }
   }
+updateDust(data) {
+    const has = data.pm1_0 !== undefined && data.pm1_0 !== null;
+    this.updateRawValue('pm1_0', data.pm1_0);
+    this.updateRawValue('pm2_5', data.pm2_5);
+    this.updateRawValue('pm10',  data.pm10);
+
+    const dot  = document.querySelector('.pms-dot');
+    const text = document.getElementById('pmsStatusText');
+    const info = document.getElementById('pmsStatus');
+    if (has) {
+        if (dot)  dot.style.background = '#27ae60';
+        if (text) text.textContent = 'Онлайн';
+        if (info) { info.textContent = '✅ Работает'; info.style.color = '#27ae60'; }
+    } else {
+        if (dot)  dot.style.background = '#e74c3c';
+        if (text) text.textContent = 'Нет данных';
+        if (info) { info.textContent = '⏳ Прогрев...'; info.style.color = '#f39c12'; }
+    }
+
+    this.setDustBar('pm1Bar',  data.pm1_0, 100);
+    this.setDustBar('pm25Bar', data.pm2_5, 250);
+    this.setDustBar('pm10Bar', data.pm10,  500);
+
+    const qualEl = document.getElementById('pm25Quality');
+    if (qualEl && has) {
+        const v = data.pm2_5;
+        const [label, color] =
+            v <= 12  ? ['🟢 Отличный',  '#27ae60'] :
+            v <= 35  ? ['🟡 Хороший',   '#f39c12'] :
+            v <= 55  ? ['🟠 Умеренный', '#e67e22'] :
+            v <= 150 ? ['🔴 Нездоровый','#e74c3c'] :
+                       ['🟣 Опасный',   '#8e44ad'];
+        qualEl.textContent = label; qualEl.style.color = color;
+    }
+
+    const aqi    = this.calcAQI(data.pm2_5);
+    const aqiEl  = document.getElementById('aqiValue');
+    const aqiLbl = document.getElementById('aqiLabel');
+    if (aqiEl && has) {
+        aqiEl.textContent = aqi;
+        const [lbl, col] =
+            aqi <= 50  ? ['Хорошо',         '#27ae60'] :
+            aqi <= 100 ? ['Умеренно',       '#f39c12'] :
+            aqi <= 150 ? ['Чувствительным', '#e67e22'] :
+            aqi <= 200 ? ['Нездоровый',     '#e74c3c'] :
+                         ['Опасный',        '#8e44ad'];
+        aqiEl.style.color = col;
+        if (aqiLbl) { aqiLbl.textContent = lbl; aqiLbl.style.color = col; }
+    }
+}
+
+calcAQI(pm25) {
+    if (pm25 == null) return '--';
+    const bp = [[0,12,0,50],[12.1,35.4,51,100],[35.5,55.4,101,150],[55.5,150.4,151,200],[150.5,250.4,201,300]];
+    for (const [cLo,cHi,iLo,iHi] of bp)
+        if (pm25 >= cLo && pm25 <= cHi)
+            return Math.round(((iHi-iLo)/(cHi-cLo))*(pm25-cLo)+iLo);
+    return pm25 > 250 ? 301 : 0;
+}
+
+setDustBar(id, value, max) {
+    const el = document.getElementById(id);
+    if (!el || value == null) return;
+    const pct = Math.min(100, (value / max) * 100);
+    el.style.width = `${pct}%`;
+    el.style.background = pct < 30 ? '#27ae60' : pct < 60 ? '#f39c12' : '#e74c3c';
+}
+
+updateRawValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = (value != null) ? value : '--';
+}
+  
 }
 
 // Запуск системы
@@ -728,3 +859,4 @@ window.addEventListener('load', () => {
   console.log('Страница загружена, инициализация системы...');
   window.sensorMonitor = new SensorMonitor();
 });
+

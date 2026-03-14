@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мониторинг датчиков ESP32</title>
-    <link rel="stylesheet" href="/style.css?hash=6423a563">
+    <link rel="stylesheet" href="/style.css?hash=b033c065">
 </head>
 <body>
     <div class="container">
@@ -97,7 +97,6 @@
                 </div>
             </div>
             
-            
             <div class="sensor-card lpg">
                 <div class="sensor-header">
                     <h3><i class="sensor-icon">⛽</i> LPG</h3>
@@ -124,6 +123,63 @@
                     <div class="sensor-history">
                         <div class="history-min">min: <span id="nh3Min">--</span></div>
                         <div class="history-max">max: <span id="nh3Max">--</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PMS5003: Частицы -->
+        <div class="dust-section">
+            <div class="dust-header">
+                <h3><i class="dust-icon">🌫️</i> Частицы в воздухе (PMS5003)</h3>
+                <div class="pms-status-badge" id="pmsStatusBadge">
+                    <span class="pms-dot"></span>
+                    <span id="pmsStatusText">Ожидание...</span>
+                </div>
+            </div>
+            <div class="dust-grid">
+                <div class="dust-card pm1">
+                    <div class="dust-label">PM1.0</div>
+                    <div class="dust-value" id="pm1_0">--</div>
+                    <div class="dust-unit">мкг/м³</div>
+                    <div class="dust-bar-wrap">
+                        <div class="dust-bar">
+                            <div class="dust-bar-fill" id="pm1Bar"></div>
+                        </div>
+                    </div>
+                    <div class="dust-desc">Ультратонкие частицы</div>
+                </div>
+                <div class="dust-card pm25">
+                    <div class="dust-label">PM2.5</div>
+                    <div class="dust-value" id="pm2_5">--</div>
+                    <div class="dust-unit">мкг/м³</div>
+                    <div class="dust-bar-wrap">
+                        <div class="dust-bar">
+                            <div class="dust-bar-fill" id="pm25Bar"></div>
+                        </div>
+                    </div>
+                    <div class="dust-quality" id="pm25Quality">--</div>
+                </div>
+                <div class="dust-card pm10">
+                    <div class="dust-label">PM10</div>
+                    <div class="dust-value" id="pm10">--</div>
+                    <div class="dust-unit">мкг/м³</div>
+                    <div class="dust-bar-wrap">
+                        <div class="dust-bar">
+                            <div class="dust-bar-fill" id="pm10Bar"></div>
+                        </div>
+                    </div>
+                    <div class="dust-desc">Крупные частицы</div>
+                </div>
+                <div class="dust-card aqi">
+                    <div class="dust-label">AQI</div>
+                    <div class="dust-value aqi-value" id="aqiValue">--</div>
+                    <div class="dust-unit">индекс</div>
+                    <div class="aqi-label" id="aqiLabel">--</div>
+                    <div class="aqi-scale">
+                        <div class="aqi-segment good">1-50</div>
+                        <div class="aqi-segment mod">51-100</div>
+                        <div class="aqi-segment bad">101+</div>
                     </div>
                 </div>
             </div>
@@ -168,6 +224,16 @@
                     <canvas id="gasChart" width="400" height="200"></canvas>
                 </div>
             </div>
+
+            <!-- График частиц -->
+            <div class="chart-section chart-full">
+                <div class="chart-header">
+                    <h3><i class="chart-icon">🌫️</i> История частиц PM</h3>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="dustChart" width="400" height="200"></canvas>
+                </div>
+            </div>
         </div>
 
         <!-- Панель управления и информации -->
@@ -190,6 +256,10 @@
                     <div class="info-item">
                         <span class="info-label">Статус MQ-135:</span>
                         <span class="info-value" id="mqStatus">--</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Статус PMS5003:</span>
+                        <span class="info-value" id="pmsStatus">--</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Всего обновлений:</span>
@@ -221,13 +291,6 @@
                         <span class="btn-icon">⚡</span>
                         <span class="btn-text">Реле: ВЫКЛ</span>
                     </button>
-                    <!-- ТЕСТ АВАРИИ - ЗАКОММЕНТИРОВАНО -->
-                    <!--
-                    <button id="alarmBtn" class="control-btn danger">
-                        <span class="btn-icon">🚨</span>
-                        <span class="btn-text">Тест аварии</span>
-                    </button>
-                    -->
                 </div>
                 
                 <div class="settings-section">
@@ -323,11 +386,11 @@
                     <h4>Технические характеристики</h4>
                     <ul>
                         <li><strong>Микроконтроллер:</strong> ESP32</li>
-                        <li><strong>Датчики:</strong> DHT22 (температура/влажность), MQ-135 (газы)</li>
+                        <li><strong>Датчики:</strong> DHT22, MQ-135, BMP280, PMS5003</li>
                         <li><strong>Интерфейс:</strong> Веб-сервер на порту 80</li>
                         <li><strong>Протокол:</strong> HTTP REST API</li>
                         <li><strong>Обновление данных:</strong> Каждые 5 секунд</li>
-                        <li><strong>Графики:</strong> Canvas для визуализации</li> <!-- Изменили здесь -->
+                        <li><strong>Графики:</strong> Canvas для визуализации</li>
                     </ul>
                     
                     <h4>Мониторируемые параметры</h4>
@@ -338,6 +401,7 @@
                         <li>CO: 0-1000 ppm</li>
                         <li>LPG: 0-10000 ppm</li>
                         <li>NH₃: 0-500 ppm</li>
+                        <li>PM1.0 / PM2.5 / PM10: мкг/м³</li>
                     </ul>
                     
                     <h4>Пороги предупреждений</h4>
@@ -356,7 +420,17 @@
                             <span class="threshold-name">LPG</span>
                             <span class="threshold-value">> 1000 ppm</span>
                             <span class="threshold-level danger">Взрывоопасно</span>
-                        </div>  
+                        </div>
+                        <div class="threshold-item">
+                            <span class="threshold-name">PM2.5</span>
+                            <span class="threshold-value">> 35 мкг/м³</span>
+                            <span class="threshold-level warning">Нездоровый</span>
+                        </div>
+                        <div class="threshold-item">
+                            <span class="threshold-name">PM10</span>
+                            <span class="threshold-value">> 150 мкг/м³</span>
+                            <span class="threshold-level danger">Опасный</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -366,15 +440,11 @@
         </div>
     </div>
 
-    <!-- Всплывающие уведомления -->
     <div id="notificationArea" class="notification-area"></div>
 
-    <!-- Основной скрипт -->
-    <script src="/script.js?hash=e8260d2e"></script>
+    <script src="/script.js?hash=e6d2c22f"></script>
     
-    <!-- Встроенные вспомогательные функции -->
     <script>
-        // Глобальные функции для модальных окон
         function showAbout() {
             event.preventDefault();
             document.getElementById('aboutModal').style.display = 'flex';
@@ -398,7 +468,6 @@
             document.getElementById(modalId).style.display = 'none';
         }
         
-        // Закрытие модальных окон при клике вне их
         window.onclick = function(event) {
             const modals = document.getElementsByClassName('modal');
             for (let modal of modals) {
@@ -408,27 +477,20 @@
             }
         };
         
-        // Обновление текущего времени
         function updateCurrentTime() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('ru-RU');
             const timeElement = document.getElementById('currentTime');
-            if (timeElement) {
-                timeElement.textContent = timeString;
-            }
+            if (timeElement) timeElement.textContent = timeString;
         }
         
-        // Обновление времени при загрузке и каждую секунду
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
         
-        // Измерение времени загрузки страницы
         window.addEventListener('load', function() {
             const loadTime = performance.now();
-            const loadTimeElement = document.getElementById('pageLoadTime');
-            if (loadTimeElement) {
-                loadTimeElement.textContent = `Загрузка: ${Math.round(loadTime)} мс`;
-            }
+            const el = document.getElementById('pageLoadTime');
+            if (el) el.textContent = `Загрузка: ${Math.round(loadTime)} мс`;
         });
     </script>
 </body>

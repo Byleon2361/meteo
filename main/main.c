@@ -17,12 +17,15 @@
 #include "sensor_data.h"
 #include "tunnel.h"
 #include "webserver.h"
+#include "pms5003.h"
 #include <stdint.h>
 #include <string.h>
 
 static const char* TAG = "MAIN";
 
 #define DHT22_GPIO GPIO_NUM_4
+#define PMS5003_TX_GPIO  16
+#define PMS5003_RX_GPIO  17
 #define RELAY_GPIO GPIO_NUM_27
 #define ADC_CHANNEL ADC_CHANNEL_0
 #define I2C_MASTER_SCL_IO 22
@@ -118,6 +121,11 @@ void app_main(void)
     mq_params_data_t mq_params = {.channel = ADC_CHANNEL, .task_delay_s = 5};
     dht_params_data_t dht_params = {.gpio = DHT22_GPIO, .task_delay_s = 5};
     bmp_params_data_t bmp_params = {.port = I2C_MASTER_PORT, .task_delay_s = 5};
+        pms_params_data_t pms_params = {
+        .tx_gpio      = PMS5003_TX_GPIO,
+        .rx_gpio      = PMS5003_RX_GPIO,
+        .task_delay_s = 10,
+    };
 
     xTaskCreatePinnedToCore(
             mq_sensor_task, "mq_sensor_task", 4096, &mq_params, 5, NULL, 0);
@@ -127,6 +135,8 @@ void app_main(void)
             bmp280_task, "bmp280_task", 4096, &bmp_params, 5, NULL, 1);
     xTaskCreatePinnedToCore(
             display_task, "display_task", 4096, NULL, 4, NULL, 0);
+    xTaskCreatePinnedToCore(
+            pms5003_task, "pms5003_task", 4096, &pms_params, 5, NULL, 0);
 
     wifi_init_sta();
     start_webserver();

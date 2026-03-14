@@ -9,6 +9,7 @@ idf_component_register(
         "src/sensor_data.c"
         "src/display.c"
         "src/bmp280.c"
+        "src/pms5003.c"
         "src/tunnel.c"
     INCLUDE_DIRS 
         "include"
