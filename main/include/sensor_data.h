@@ -2,9 +2,9 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "pms5003.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "pms5003.h"
 
 typedef struct {
     // DHT22
@@ -30,7 +30,7 @@ typedef struct {
     uint16_t pm1_0;
     uint16_t pm2_5;
     uint16_t pm10;
-    uint8_t  pms_valid;
+    uint8_t pms_valid;
 
     SemaphoreHandle_t mutex;
 } sensor_data_t;
@@ -59,5 +59,6 @@ void sensor_data_set_mq(
 void sensor_data_get_mq(float* co2, float* lpg, float* co, float* nh3);
 
 // PMS5003
-void sensor_data_set_pms5003(const pms5003_data_t *data);
-void sensor_data_get_pms5003(uint16_t* pm1_0, uint16_t* pm2_5, uint16_t* pm10, uint8_t* valid);
+void sensor_data_set_pms5003(const pms5003_data_t* data);
+void sensor_data_get_pms5003(
+        uint16_t* pm1_0, uint16_t* pm2_5, uint16_t* pm10, uint8_t* valid);
