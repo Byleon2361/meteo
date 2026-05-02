@@ -12,6 +12,7 @@ idf_component_register(
         "src/pms5003.c"
         "src/tunnel.c"
         "src/st7735.c"
+        "src/mqtt_manager.c"
     INCLUDE_DIRS 
         "include"
     EMBED_FILES

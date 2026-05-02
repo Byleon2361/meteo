@@ -18,6 +18,7 @@
 #include "tunnel.h"
 #include "webserver.h"
 #include "pms5003.h"
+#include "mqtt_manager.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -137,8 +138,10 @@ void app_main(void)
             display_task, "display_task", 4096, NULL, 4, NULL, 0);
     xTaskCreatePinnedToCore(
             pms5003_task, "pms5003_task", 4096, &pms_params, 5, NULL, 0);
+    xTaskCreatePinnedToCore(mqtt_publish_task, "mqtt_pub", 4096, NULL, 3, NULL, 0);
 
     wifi_init_sta();
+    mqtt_manager_init();
     start_webserver();
     tunnel_init();
 
