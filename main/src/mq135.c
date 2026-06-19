@@ -16,44 +16,57 @@ static float calculate_rs(float vrl)
     float vcc = 3.3;
     return ((vcc - vrl) / vrl) * RL_VALUE;
 }
+static float read_adc_voltage_avg(adc_channel_t channel, int samples)
+{
+    float sum = 0;
+    for (int i = 0; i < samples; i++) {
+        sum += read_adc_voltage(channel);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    return sum / samples;
+}
 
 static float calculate_rs_ro_ratio(adc_channel_t channel, float ro)
 {
-    float voltage = read_adc_voltage(channel);
+    float voltage = read_adc_voltage_avg(channel, 10);   // ← было одно измерение
     float rs = calculate_rs(voltage);
     return rs / ro;
 }
 
+static float clamp_ppm(float value, float min_v, float max_v)
+{
+    if (isnan(value) || isinf(value)) return min_v;
+    if (value < min_v) return min_v;
+    if (value > max_v) return max_v;
+    return value;
+}
+
 static float calculate_co2_ppm(float rs_ro_ratio)
 {
-    float a = -0.352519;
-    float b = 5.17901;
-
-    return powf(rs_ro_ratio / b, 1.0f / a);
+    float a = -0.352519, b = 5.17901;
+    float ppm = powf(rs_ro_ratio / b, 1.0f / a);
+    return clamp_ppm(ppm, 400.0f, 5000.0f);   // CO2 в воздухе не бывает < 400
 }
 
 static float calculate_co_ppm(float rs_ro_ratio)
 {
-    float a = -0.229115;
-    float b = 4.98267;
-
-    return powf(rs_ro_ratio / b, 1.0f / a);
+    float a = -0.229115, b = 4.98267;
+    float ppm = powf(rs_ro_ratio / b, 1.0f / a);
+    return clamp_ppm(ppm, 0.0f, 1000.0f);   // выше 1000 ppm — почти наверняка шум/ошибка
 }
 
 static float calculate_nh3_ppm(float rs_ro_ratio)
 {
-    float a = -0.41162;
-    float b = 6.6564;
-
-    return powf(rs_ro_ratio / b, 1.0f / a);
+    float a = -0.41162, b = 6.6564;
+    float ppm = powf(rs_ro_ratio / b, 1.0f / a);
+    return clamp_ppm(ppm, 0.0f, 300.0f);
 }
 
 static float calculate_lpg_ppm(float rs_ro_ratio)
 {
-    float a = -0.30219;
-    float b = 3.00802;
-
-    return powf(rs_ro_ratio / b, 1.0f / a);
+    float a = -0.30219, b = 3.00802;
+    float ppm = powf(rs_ro_ratio / b, 1.0f / a);
+    return clamp_ppm(ppm, 0.0f, 1000.0f);
 }
 
 void mq_sensor_task(void* mq_params)

@@ -36,6 +36,7 @@ typedef struct {
 } sensor_data_t;
 
 void sensor_data_init(void);
+float sensor_data_get_temp_avg(void);
 
 // DHT22
 void sensor_data_set_dht(float temperature_dht, float humidity, uint8_t valid);

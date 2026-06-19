@@ -63,6 +63,10 @@ static esp_err_t get_handler(httpd_req_t* req)
     uint8_t dht_valid;
     sensor_data_get_dht(&temperature, &humidity, &dht_valid);
 
+    float temperature_bmp, pressure;
+    uint8_t bmp_valid;
+    sensor_data_get_bmp(&temperature_bmp, &pressure, &bmp_valid);   // ← добавлено
+
     float co2_ppm, lpg_ppm, co_ppm, nh3_ppm;
     sensor_data_get_mq(&co2_ppm, &lpg_ppm, &co_ppm, &nh3_ppm);
 
@@ -70,39 +74,31 @@ static esp_err_t get_handler(httpd_req_t* req)
     uint8_t pms_valid;
     sensor_data_get_pms5003(&pm1_0, &pm2_5, &pm10, &pms_valid);
 
-    char buf[320];
+    char buf[384];   // ← увеличен буфер под новое поле
     int len;
     if (pms_valid) {
         len = snprintf(
                 buf,
                 sizeof(buf),
-                "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,"
-                "\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d,"
+                "{\"temperature\":%.2f,\"humidity\":%.2f,\"pressure\":%.2f,"
+                "\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,"
+                "\"dht_valid\":%d,\"bmp_valid\":%d,"
                 "\"pm1_0\":%u,\"pm2_5\":%u,\"pm10\":%u}",
-                temperature,
-                humidity,
-                co2_ppm,
-                co_ppm,
-                nh3_ppm,
-                lpg_ppm,
-                dht_valid ? 1 : 0,
-                pm1_0,
-                pm2_5,
-                pm10);
+                temperature, humidity, pressure,
+                co2_ppm, co_ppm, nh3_ppm, lpg_ppm,
+                dht_valid ? 1 : 0, bmp_valid ? 1 : 0,
+                pm1_0, pm2_5, pm10);
     } else {
         len = snprintf(
                 buf,
                 sizeof(buf),
-                "{\"temperature\":%.2f,\"humidity\":%.2f,\"CO2\":%.2f,"
-                "\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,\"dht_valid\":%d,"
+                "{\"temperature\":%.2f,\"humidity\":%.2f,\"pressure\":%.2f,"
+                "\"CO2\":%.2f,\"CO\":%.2f,\"NH3\":%.2f,\"LPG\":%.2f,"
+                "\"dht_valid\":%d,\"bmp_valid\":%d,"
                 "\"pm1_0\":null,\"pm2_5\":null,\"pm10\":null}",
-                temperature,
-                humidity,
-                co2_ppm,
-                co_ppm,
-                nh3_ppm,
-                lpg_ppm,
-                dht_valid ? 1 : 0);
+                temperature, humidity, pressure,
+                co2_ppm, co_ppm, nh3_ppm, lpg_ppm,
+                dht_valid ? 1 : 0, bmp_valid ? 1 : 0);
     }
 
     ESP_LOGI(TAG, "Отправляем JSON: %s", buf);
@@ -113,7 +109,6 @@ static esp_err_t get_handler(httpd_req_t* req)
     httpd_resp_send(req, buf, len);
     return ESP_OK;
 }
-
 static esp_err_t relay_handler(httpd_req_t* req)
 {
     char query[64];

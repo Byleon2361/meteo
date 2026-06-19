@@ -11,12 +11,12 @@
 
 static const char* TAG = "TUNNEL";
 
-#define VPS_HOST "72.56.93.56"
+#define VPS_HOST "72.56.247.97"
 #define VPS_TUNNEL_PORT 9000
 #define LOCAL_WEB_PORT 80
 #define POOL_SIZE 6
 #define HANDSHAKE_TOKEN "METEO_ESP32_SECRET\n"
-#define HANDSHAKE_OK    "OK\n"
+#define HANDSHAKE_OK "OK\n"
 
 static uint32_t get_local_ip(void)
 {
@@ -39,20 +39,19 @@ static void tunnel_worker(void* arg)
         }
 
         struct sockaddr_in vps_addr = {
-            .sin_family = AF_INET,
-            .sin_port   = htons(VPS_TUNNEL_PORT),
+                .sin_family = AF_INET,
+                .sin_port = htons(VPS_TUNNEL_PORT),
         };
         inet_pton(AF_INET, VPS_HOST, &vps_addr.sin_addr);
 
-        if (connect(vps_sock, (struct sockaddr*)&vps_addr,
-                    sizeof(vps_addr)) != 0) {
+        if (connect(vps_sock, (struct sockaddr*)&vps_addr, sizeof(vps_addr))
+            != 0) {
             ESP_LOGW(TAG, "Не удалось подключиться к VPS, повтор через 5с");
             close(vps_sock);
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
         }
 
-        // ── Рукопожатие ──────────────────────────────────
         send(vps_sock, HANDSHAKE_TOKEN, strlen(HANDSHAKE_TOKEN), 0);
 
         char ack[8] = {0};
@@ -66,12 +65,10 @@ static void tunnel_worker(void* arg)
             continue;
         }
         ESP_LOGI(TAG, "Туннель установлен, ждём запрос...");
-        // ─────────────────────────────────────────────────
 
         char request[2048] = {0};
         struct timeval tv_req = {.tv_sec = 60};
-        setsockopt(vps_sock, SOL_SOCKET, SO_RCVTIMEO,
-                   &tv_req, sizeof(tv_req));
+        setsockopt(vps_sock, SOL_SOCKET, SO_RCVTIMEO, &tv_req, sizeof(tv_req));
 
         int req_len = recv(vps_sock, request, sizeof(request) - 1, 0);
         if (req_len <= 0) {
@@ -88,23 +85,24 @@ static void tunnel_worker(void* arg)
 
         int local_sock = socket(AF_INET, SOCK_STREAM, 0);
         struct sockaddr_in local_addr = {
-            .sin_family      = AF_INET,
-            .sin_port        = htons(LOCAL_WEB_PORT),
-            .sin_addr.s_addr = local_ip,
+                .sin_family = AF_INET,
+                .sin_port = htons(LOCAL_WEB_PORT),
+                .sin_addr.s_addr = local_ip,
         };
 
-        if (connect(local_sock, (struct sockaddr*)&local_addr,
-                    sizeof(local_addr)) == 0) {
+        if (connect(local_sock,
+                    (struct sockaddr*)&local_addr,
+                    sizeof(local_addr))
+            == 0) {
             send(local_sock, request, req_len, 0);
 
             char response[4096];
             int resp_len;
             struct timeval tv = {.tv_sec = 5};
-            setsockopt(local_sock, SOL_SOCKET, SO_RCVTIMEO,
-                       &tv, sizeof(tv));
+            setsockopt(local_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-            while ((resp_len = recv(local_sock, response,
-                                    sizeof(response), 0)) > 0) {
+            while ((resp_len = recv(local_sock, response, sizeof(response), 0))
+                   > 0) {
                 send(vps_sock, response, resp_len, 0);
             }
             ESP_LOGI(TAG, "Запрос проксирован");

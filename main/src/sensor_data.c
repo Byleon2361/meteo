@@ -15,6 +15,22 @@ void sensor_data_init(void)
     sensor_data.dht_valid = 0;
 }
 
+float sensor_data_get_temp_avg(void)
+{
+    float t_dht, h_dht, t_bmp, p_bmp;
+    uint8_t dht_valid, bmp_valid;
+    sensor_data_get_dht(&t_dht, &h_dht, &dht_valid);
+    sensor_data_get_bmp(&t_bmp, &p_bmp, &bmp_valid);
+
+    if (dht_valid && bmp_valid)
+        return (t_dht + t_bmp) / 2.0f;
+    if (dht_valid)
+        return t_dht;
+    if (bmp_valid)
+        return t_bmp;
+    return 0.0f;
+}
+
 void sensor_data_set_dht(float temperature_dht, float humidity, uint8_t valid)
 {
     if (xSemaphoreTake(sensor_data.mutex, portMAX_DELAY) == pdTRUE) {
@@ -89,23 +105,24 @@ void sensor_data_get_mq(float* co2, float* lpg, float* co, float* nh3)
     }
 }
 
-void sensor_data_set_pms5003(const pms5003_data_t *data)
+void sensor_data_set_pms5003(const pms5003_data_t* data)
 {
     if (xSemaphoreTake(sensor_data.mutex, portMAX_DELAY) == pdTRUE) {
-        sensor_data.pm1_0    = data->pm1_0;
-        sensor_data.pm2_5    = data->pm2_5;
-        sensor_data.pm10     = data->pm10;
+        sensor_data.pm1_0 = data->pm1_0;
+        sensor_data.pm2_5 = data->pm2_5;
+        sensor_data.pm10 = data->pm10;
         sensor_data.pms_valid = 1;
         xSemaphoreGive(sensor_data.mutex);
     }
 }
- 
-void sensor_data_get_pms5003(uint16_t* pm1_0, uint16_t* pm2_5, uint16_t* pm10, uint8_t* valid)
+
+void sensor_data_get_pms5003(
+        uint16_t* pm1_0, uint16_t* pm2_5, uint16_t* pm10, uint8_t* valid)
 {
     if (xSemaphoreTake(sensor_data.mutex, portMAX_DELAY) == pdTRUE) {
         *pm1_0 = sensor_data.pm1_0;
         *pm2_5 = sensor_data.pm2_5;
-        *pm10  = sensor_data.pm10;
+        *pm10 = sensor_data.pm10;
         *valid = sensor_data.pms_valid;
         xSemaphoreGive(sensor_data.mutex);
     }

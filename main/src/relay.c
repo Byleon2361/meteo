@@ -23,7 +23,6 @@ void init_relay(uint8_t gpio)
                .intr_type = GPIO_INTR_DISABLE};
     gpio_config(&io_conf);
 
-    // Изначально выключаем реле
     gpio_set_level(gpio, 0);
     ESP_LOGI("RELAY", "Реле инициализировано на GPIO 2 (ВЫКЛ)");
 }

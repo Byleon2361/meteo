@@ -12,21 +12,21 @@
 #include "freertos/event_groups.h"
 #include "hal/adc_types.h"
 #include "mq135.h"
+#include "mqtt_manager.h"
 #include "nvs_flash.h"
+#include "pms5003.h"
 #include "relay.h"
 #include "sensor_data.h"
 #include "tunnel.h"
 #include "webserver.h"
-#include "pms5003.h"
-#include "mqtt_manager.h"
 #include <stdint.h>
 #include <string.h>
 
 static const char* TAG = "MAIN";
 
 #define DHT22_GPIO GPIO_NUM_4
-#define PMS5003_TX_GPIO  16
-#define PMS5003_RX_GPIO  17
+#define PMS5003_TX_GPIO 16
+#define PMS5003_RX_GPIO 17
 #define RELAY_GPIO GPIO_NUM_27
 #define ADC_CHANNEL ADC_CHANNEL_0
 #define I2C_MASTER_SCL_IO 22
@@ -37,28 +37,61 @@ static const char* TAG = "MAIN";
 #define WIFI_STA_SSID "TP-Link_D2CD"
 #define WIFI_STA_PASSWORD "61629400"
 
+#define WIFI_AP_SSID "Meteo"
+#define WIFI_AP_PASSWORD "1234567890"
+#define WIFI_AP_CHANNEL 1
+#define WIFI_AP_MAX_CONN 4
+
 #define WIFI_CONNECTED_BIT BIT0
 static EventGroupHandle_t s_wifi_event_group;
+static bool s_tunnel_started = false;
 
 static void
 wifi_event_handler(void* arg, esp_event_base_t base, int32_t id, void* data)
 {
-    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
+        esp_wifi_connect();
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         wifi_event_sta_disconnected_t* event
                 = (wifi_event_sta_disconnected_t*)data;
-        ESP_LOGE(TAG, "WiFi отключён, причина: %d", event->reason);
+        ESP_LOGW(
+                TAG,
+                "WiFi (STA) отключён, причина: %d. Повтор...",
+                event->reason);
+        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         esp_wifi_connect();
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STACONNECTED) {
+        wifi_event_ap_staconnected_t* e = (wifi_event_ap_staconnected_t*)data;
+        ESP_LOGI(
+                TAG,
+                "К локальной точке доступа подключился клиент "
+                "%02x:%02x:%02x:%02x:%02x:%02x",
+                e->mac[0],
+                e->mac[1],
+                e->mac[2],
+                e->mac[3],
+                e->mac[4],
+                e->mac[5]);
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* e = (ip_event_got_ip_t*)data;
-        ESP_LOGI(TAG, "Получен IP: " IPSTR, IP2STR(&e->ip_info.ip));
+        ESP_LOGI(
+                TAG,
+                "Подключено к роутеру, IP: " IPSTR,
+                IP2STR(&e->ip_info.ip));
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        if (!s_tunnel_started) {
+            tunnel_init();
+            s_tunnel_started = true;
+        }
     }
 }
 
-static void wifi_init_sta(void)
+static void wifi_init_apsta(void)
 {
     s_wifi_event_group = xEventGroupCreate();
+
     esp_netif_create_default_wifi_sta();
+    esp_netif_create_default_wifi_ap();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -67,21 +100,41 @@ static void wifi_init_sta(void)
             WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(
             IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid     = WIFI_STA_SSID,
-            .password = WIFI_STA_PASSWORD,
-        },
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-    esp_wifi_connect();
 
-    ESP_LOGI(TAG, "Ждём подключения к WiFi...");
-    xEventGroupWaitBits(
-            s_wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
-    ESP_LOGI(TAG, "WiFi подключён");
+    wifi_config_t sta_config = {
+      .sta =
+          {
+              .ssid = WIFI_STA_SSID,
+              .password = WIFI_STA_PASSWORD,
+          },
+  };
+
+    wifi_config_t ap_config = {
+      .ap =
+          {
+              .ssid = WIFI_AP_SSID,
+              .ssid_len = strlen(WIFI_AP_SSID),
+              .channel = WIFI_AP_CHANNEL,
+              .password = WIFI_AP_PASSWORD,
+              .max_connection = WIFI_AP_MAX_CONN,
+              .authmode = WIFI_AUTH_WPA2_PSK,
+          },
+  };
+
+    if (strlen(WIFI_AP_PASSWORD) == 0) {
+        ap_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(
+            TAG,
+            "Локальная точка доступа \"%s\" запущена (http://192.168.4.1)",
+            WIFI_AP_SSID);
+    ESP_LOGI(TAG, "Идёт подключение к домашней сети \"%s\"...", WIFI_STA_SSID);
 }
 
 static void i2c_master_init(void)
@@ -122,14 +175,14 @@ void app_main(void)
     mq_params_data_t mq_params = {.channel = ADC_CHANNEL, .task_delay_s = 5};
     dht_params_data_t dht_params = {.gpio = DHT22_GPIO, .task_delay_s = 5};
     bmp_params_data_t bmp_params = {.port = I2C_MASTER_PORT, .task_delay_s = 5};
-        pms_params_data_t pms_params = {
-        .tx_gpio      = PMS5003_TX_GPIO,
-        .rx_gpio      = PMS5003_RX_GPIO,
-        .task_delay_s = 10,
+    pms_params_data_t pms_params = {
+            .tx_gpio = PMS5003_TX_GPIO,
+            .rx_gpio = PMS5003_RX_GPIO,
+            .task_delay_s = 10,
     };
 
     xTaskCreatePinnedToCore(
-            mq_sensor_task, "mq_sensor_task", 4096, &mq_params, 5, NULL, 0);
+            mq_sensor_task, "mq_sensor_task", 4096, &mq_params, 5, NULL, 1);
     xTaskCreatePinnedToCore(
             dht22_task, "dht22_task", 4096, &dht_params, 5, NULL, 1);
     xTaskCreatePinnedToCore(
@@ -138,12 +191,14 @@ void app_main(void)
             display_task, "display_task", 4096, NULL, 4, NULL, 0);
     xTaskCreatePinnedToCore(
             pms5003_task, "pms5003_task", 4096, &pms_params, 5, NULL, 0);
-    xTaskCreatePinnedToCore(mqtt_publish_task, "mqtt_pub", 4096, NULL, 3, NULL, 0);
+    xTaskCreatePinnedToCore(
+            mqtt_publish_task, "mqtt_pub", 4096, NULL, 3, NULL, 0);
 
-    wifi_init_sta();
-    mqtt_manager_init();
+    wifi_init_apsta();
+
     start_webserver();
-    tunnel_init();
+
+    mqtt_manager_init();
 
     while (1) {
         vTaskDelay(portMAX_DELAY);

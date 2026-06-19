@@ -5,8 +5,9 @@
 #include "esp_log.h"
 
 // Адреса I2C
-#define BMP280_I2C_ADDR_PRIMARY 0x76
-#define BMP280_I2C_ADDR_SECONDARY 0x77
+#define BMP280_I2C_ADDR_PRIMARY 0x45
+#define BMP280_I2C_ADDR_SECONDARY 0x76
+#define BMP280_I2C_ADDR_THIRD 0x77
 #define BMP280_I2C_TIMEOUT_MS 1000
 
 // ID чипов

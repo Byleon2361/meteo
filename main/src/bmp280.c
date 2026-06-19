@@ -1,5 +1,6 @@
 #include "bmp280.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/projdefs.h"
 #include "freertos/task.h"
 #include "sensor_data.h"
 #include <string.h>
@@ -364,7 +365,8 @@ void bmp280_task(void* bmp_params)
     esp_err_t err = bmp280_init(&sensor, params->port, 0);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize sensor");
-        return;
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        // return;
     }
 
     ESP_LOGI(TAG, "BMP280 initialized successfully");
@@ -379,7 +381,8 @@ void bmp280_task(void* bmp_params)
     err = bmp280_set_config(&sensor, &config);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to configure sensor");
-        return;
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        // return;
     }
 
     ESP_LOGI(TAG, "Sensor configured, starting measurements...");

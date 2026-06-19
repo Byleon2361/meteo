@@ -16,7 +16,7 @@ static const char* TAG = "DISPLAY";
 #define H ST7735_HEIGHT // 160
 
 #define MARGIN 4
-#define ROW_H 14 // если не хватает места, то поменять это значение
+#define ROW_H 14
 #define LABEL_SCALE 1
 #define VALUE_SCALE 2
 
