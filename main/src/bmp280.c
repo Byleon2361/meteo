@@ -395,7 +395,7 @@ void bmp280_task(void* bmp_params)
         float pressure_hPa = pressure / 100.0f;
         float pressure_mmHg = pressure_hPa * 0.750062;
 
-        sensor_data_set_bmp(temperature, pressure_mmHg, err);
+        sensor_data_set_bmp(temperature, pressure_mmHg, err == ESP_OK ? 1 : 0);
 
         vTaskDelay(pdMS_TO_TICKS(params->task_delay_s * 1000));
     }

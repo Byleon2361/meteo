@@ -182,11 +182,11 @@ void app_main(void)
     };
 
     xTaskCreatePinnedToCore(
-            mq_sensor_task, "mq_sensor_task", 4096, &mq_params, 5, NULL, 1);
+            mq_sensor_task, "mq_sensor_task", 4096, &mq_params, 5, NULL, 0);
     xTaskCreatePinnedToCore(
             dht22_task, "dht22_task", 4096, &dht_params, 5, NULL, 1);
     xTaskCreatePinnedToCore(
-            bmp280_task, "bmp280_task", 4096, &bmp_params, 5, NULL, 1);
+            bmp280_task, "bmp280_task", 4096, &bmp_params, 5, NULL, 0);
     xTaskCreatePinnedToCore(
             display_task, "display_task", 4096, NULL, 4, NULL, 0);
     xTaskCreatePinnedToCore(

@@ -284,7 +284,7 @@ void st7735_init(void)
     send_cmd(ST7735_INVOFF);
 
     send_cmd(ST7735_MADCTL);
-    send_byte(MADCTL_MY | MADCTL_MX | MADCTL_RGB);
+    send_byte(MADCTL_MV | MADCTL_MX | MADCTL_RGB);
 
     send_cmd(ST7735_COLMOD);
     send_byte(0x05);

@@ -1,23 +1,21 @@
 #include "tunnel.h"
-
 #include <string.h>
-
+#include <stdlib.h>
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
-
 static const char* TAG = "TUNNEL";
-
 #define VPS_HOST "72.56.247.97"
 #define VPS_TUNNEL_PORT 9000
 #define LOCAL_WEB_PORT 80
 #define POOL_SIZE 6
+#define REQ_BUF_SIZE 2048
+#define RESP_BUF_SIZE 4096
 #define HANDSHAKE_TOKEN "METEO_ESP32_SECRET\n"
 #define HANDSHAKE_OK "OK\n"
-
 static uint32_t get_local_ip(void)
 {
     esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
@@ -28,22 +26,28 @@ static uint32_t get_local_ip(void)
         return 0;
     return ip_info.ip.addr;
 }
-
 static void tunnel_worker(void* arg)
 {
+    char* request = malloc(REQ_BUF_SIZE);
+    char* response = malloc(RESP_BUF_SIZE);
+    if (!request || !response) {
+        ESP_LOGE(TAG, "Нет памяти под буферы");
+        free(request);
+        free(response);
+        vTaskDelete(NULL);
+        return;
+    }
     while (1) {
         int vps_sock = socket(AF_INET, SOCK_STREAM, 0);
         if (vps_sock < 0) {
             vTaskDelay(pdMS_TO_TICKS(3000));
             continue;
         }
-
         struct sockaddr_in vps_addr = {
                 .sin_family = AF_INET,
                 .sin_port = htons(VPS_TUNNEL_PORT),
         };
         inet_pton(AF_INET, VPS_HOST, &vps_addr.sin_addr);
-
         if (connect(vps_sock, (struct sockaddr*)&vps_addr, sizeof(vps_addr))
             != 0) {
             ESP_LOGW(TAG, "Не удалось подключиться к VPS, повтор через 5с");
@@ -51,9 +55,7 @@ static void tunnel_worker(void* arg)
             vTaskDelay(pdMS_TO_TICKS(5000));
             continue;
         }
-
         send(vps_sock, HANDSHAKE_TOKEN, strlen(HANDSHAKE_TOKEN), 0);
-
         char ack[8] = {0};
         struct timeval tv_hs = {.tv_sec = 5};
         setsockopt(vps_sock, SOL_SOCKET, SO_RCVTIMEO, &tv_hs, sizeof(tv_hs));
@@ -65,43 +67,38 @@ static void tunnel_worker(void* arg)
             continue;
         }
         ESP_LOGI(TAG, "Туннель установлен, ждём запрос...");
-
-        char request[2048] = {0};
+        memset(request, 0, REQ_BUF_SIZE);
         struct timeval tv_req = {.tv_sec = 60};
         setsockopt(vps_sock, SOL_SOCKET, SO_RCVTIMEO, &tv_req, sizeof(tv_req));
-
-        int req_len = recv(vps_sock, request, sizeof(request) - 1, 0);
+        int req_len = recv(vps_sock, request, REQ_BUF_SIZE - 1, 0);
         if (req_len <= 0) {
-            ESP_LOGW(TAG, "Нет запроса от VPS");
             close(vps_sock);
             continue;
         }
-
         uint32_t local_ip = get_local_ip();
         if (local_ip == 0) {
             close(vps_sock);
             continue;
         }
-
         int local_sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (local_sock < 0) {
+            close(vps_sock);
+            continue;
+        }
         struct sockaddr_in local_addr = {
                 .sin_family = AF_INET,
                 .sin_port = htons(LOCAL_WEB_PORT),
                 .sin_addr.s_addr = local_ip,
         };
-
         if (connect(local_sock,
                     (struct sockaddr*)&local_addr,
                     sizeof(local_addr))
             == 0) {
             send(local_sock, request, req_len, 0);
-
-            char response[4096];
             int resp_len;
             struct timeval tv = {.tv_sec = 5};
             setsockopt(local_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-            while ((resp_len = recv(local_sock, response, sizeof(response), 0))
+            while ((resp_len = recv(local_sock, response, RESP_BUF_SIZE, 0))
                    > 0) {
                 send(vps_sock, response, resp_len, 0);
             }
@@ -109,16 +106,14 @@ static void tunnel_worker(void* arg)
         } else {
             ESP_LOGE(TAG, "Не удалось подключиться к webserver");
         }
-
         close(local_sock);
         close(vps_sock);
     }
 }
-
 void tunnel_init(void)
 {
     for (int i = 0; i < POOL_SIZE; i++) {
-        xTaskCreate(tunnel_worker, "tunnel_worker", 8192, NULL, 3, NULL);
+        xTaskCreate(tunnel_worker, "tunnel_worker", 4096, NULL, 3, NULL);
         vTaskDelay(pdMS_TO_TICKS(200));
     }
     ESP_LOGI(TAG, "Туннель запущен (%d соединений)", POOL_SIZE);

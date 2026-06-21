@@ -191,6 +191,7 @@ class SensorMonitor {
     this.updateValue('co', data.CO);
     this.updateValue('lpg', data.LPG);
     this.updateValue('nh3', data.NH3);
+    this.updateAirLevel(data);
     this.updateDust(data);
     this.setText('lastUpdate', new Date().toLocaleTimeString());
     this.updateSensorStatus(data);
@@ -278,6 +279,31 @@ class SensorMonitor {
       aqiEl.style.color = col;
       if (aqiLbl) { aqiLbl.textContent = lbl; aqiLbl.style.color = col; }
     }
+  }
+
+
+  updateAirLevel(data) {
+    const el = document.getElementById('airLevel');
+    const box = document.getElementById('airSummary');
+    if (!el) return;
+    const co2 = data.CO2;
+    if (co2 === undefined || co2 === null) {
+      el.textContent = '--';
+      el.style.color = '#6b7280';
+      if (box) box.style.borderLeftColor = '#6b7280';
+      return;
+    }
+    let label, color;
+    if (co2 <= 800) { label = 'хорошо'; color = '#16a34a'; }
+    else if (co2 <= 1000) { label = 'умеренно'; color = '#d97706'; }
+    else if (co2 <= 1500) { label = 'плохо'; color = '#ea580c'; }
+    else { label = 'очень плохо'; color = '#dc2626'; }
+    if (((data.CO ?? 0) > 9 || (data.LPG ?? 0) > 500 || (data.NH3 ?? 0) > 25) && color !== '#dc2626') {
+      label = 'плохо'; color = '#ea580c';
+    }
+    el.textContent = label;
+    el.style.color = color;
+    if (box) box.style.borderLeftColor = color;
   }
 
   calcAQI(pm25) {
